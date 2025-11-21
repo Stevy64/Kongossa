@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}{{ topic.name }} - Kongossa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .post-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .post-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred pb-20">
+    <!-- Header - Tab bar plus foncée -->
+    <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl border-b border-white/20">
+        <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
+            <a href="{% url 'forum:topics_list' %}" class="text-white/80 hover:text-white transition-all hover:scale-105 flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span>Retour</span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-gold flex items-center justify-center shadow-gold">
+                    {% if topic.icon|length > 2 %}
+                        <span class="text-2xl">{{ topic.icon }}</span>
+                    {% else %}
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="text-white text-xl font-poppins font-bold">{{ topic.name }}</h1>
+                    <p class="text-gray-300 text-sm">{{ page_obj.paginator.count }} discussion{{ page_obj.paginator.count|pluralize }}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                {% if topic.creator == user %}
+                <a href="{% url 'forum:manage_topic' topic.slug %}" class="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-300 hover:scale-110" title="Gérer le sujet">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        {% if topic.description %}
+            <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+                <p class="text-gray-200 leading-relaxed">{{ topic.description }}</p>
+            </div>
+        {% endif %}
+        
+        <!-- Formulaire de création de post -->
+        <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+            <h2 class="text-white font-poppins font-bold text-lg mb-4 flex items-center space-x-2">
+                <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                </svg>
+                <span>Créer une nouvelle discussion</span>
+            </h2>
+            <form method="POST" action="{% url 'forum:create_post' %}" enctype="multipart/form-data" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="topic_id" value="{{ topic.id }}">
+                <textarea 
+                    name="content" 
+                    rows="4" 
+                    placeholder="Partagez vos pensées sur {{ topic.name }}..."
+                    class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent resize-none backdrop-blur-sm transition-all"
+                    required
+                ></textarea>
+                <div class="flex items-center justify-between">
+                    <label class="cursor-pointer btn-interactive">
+                        <input type="file" name="image" accept="image/*" class="hidden" id="image-input">
+                        <span class="px-4 py-2 rounded-full glass text-white/90 hover:text-white hover:bg-white/20 transition-all flex items-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>Ajouter une image</span>
+                        </span>
+                    </label>
+                    <button type="submit" class="btn-pill bg-gradient-gold text-brand-primary font-semibold hover:shadow-gold hover:scale-105 transition-all btn-interactive font-bold">
+                        Publier
+                    </button>
+                </div>
+                <div id="image-preview" class="hidden mt-3">
+                    <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-2xl border border-white/20 shadow-lg">
+                </div>
+            </form>
+        </div>
+        
+        <!-- Groupes de discussion -->
+        {% if groups %}
+        <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+            <h2 class="text-white font-poppins font-bold text-lg mb-4 flex items-center space-x-2">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Groupes de discussion</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for group in groups %}
+                <div class="glass rounded-2xl p-4 border border-white/10 hover:bg-white/5 transition-all">
+                    <div class="flex items-start space-x-3 mb-3">
+                        {% if group.image %}
+                            <img src="{{ group.image.url }}" alt="{{ group.name }}" class="w-12 h-12 rounded-xl object-cover">
+                        {% else %}
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                        {% endif %}
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-white font-semibold text-sm truncate">{{ group.name }}</h3>
+                            <p class="text-gray-400 text-xs">{{ group.members_count }} membre{{ group.members_count|pluralize }}</p>
+                            {% if group.description %}
+                                <p class="text-gray-300 text-xs mt-1 line-clamp-2">{{ group.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if group.id in user_groups %}
+                        <a href="{% url 'forum:group_detail' group.id %}" class="block w-full text-center px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-green-500 text-white text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all font-bold">
+                            Accéder au groupe
+                        </a>
+                    {% elif group.id in pending_requests %}
+                        <div class="space-y-2">
+                            <div class="text-center px-4 py-2 rounded-xl bg-yellow-500/20 text-yellow-300 text-sm font-medium">
+                                Demande en attente
+                            </div>
+                            {% if user_group_requests|get_item:group.id %}
+                                {% with request_obj=user_group_requests|get_item:group.id %}
+                                    <form method="POST" action="{% url 'forum:cancel_group_request' request_obj.id %}" onsubmit="return confirm('Êtes-vous sûr de vouloir annuler votre demande ?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full px-4 py-2 rounded-xl bg-gray-600/20 text-gray-300 text-sm font-semibold hover:bg-gray-600/30 transition-all">
+                                            Annuler la demande
+                                        </button>
+                                    </form>
+                                {% endwith %}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <form method="POST" action="{% url 'forum:request_group_access' group.id %}" class="space-y-2">
+                            {% csrf_token %}
+                            <input type="text" name="message" placeholder="Message (optionnel)" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="submit" class="w-full px-4 py-2 rounded-xl bg-gradient-gold text-brand-primary text-sm font-semibold hover:shadow-gold hover:scale-105 transition-all font-bold">
+                                Demander l'accès
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Liste des posts -->
+        {% if page_obj %}
+            <div class="space-y-5">
+                {% for post in page_obj %}
+                    <div class="glass-enhanced rounded-3xl p-6 hover-lift stagger-item border border-white/20">
+                        <div class="flex items-start space-x-4 mb-4">
+                            <a href="{% url 'users:profile' post.author.username %}" class="flex-shrink-0">
+                                <div class="w-12 h-12 rounded-2xl bg-gradient-gold flex items-center justify-center overflow-hidden shadow-gold hover:scale-110 transition-transform">
+                                    {% if post.author.avatar %}
+                                        <img src="{{ post.author.avatar.url }}" alt="{{ post.author.username }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                        <span class="text-white text-lg font-bold">{{ post.author.username|first|upper }}</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <a href="{% url 'users:profile' post.author.username %}" class="text-white font-semibold hover:text-gold transition-colors">
+                                        {{ post.author.username }}
+                                    </a>
+                                    <span class="text-gray-400">·</span>
+                                    <span class="text-gray-400 text-sm">{{ post.created_at|timesince }}</span>
+                                </div>
+                                <p class="text-gray-200 whitespace-pre-wrap leading-relaxed">{{ post.content }}</p>
+                                {% if post.image %}
+                                    <img src="{{ post.image.url }}" alt="Post image" class="mt-4 rounded-2xl max-w-full h-auto shadow-lg border border-white/20 cursor-pointer hover:scale-[1.02] transition-transform" onclick="window.open(this.src, '_blank')">
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-8 pt-4 border-t border-white/20">
+                            <button 
+                                onclick="toggleLike({{ post.id }})"
+                                class="flex items-center space-x-2 text-gray-300 hover:text-red-500 transition-all duration-300 hover:scale-110 btn-interactive px-3 py-2 rounded-full hover:bg-white/10"
+                                id="like-btn-{{ post.id }}"
+                            >
+                                <svg class="w-6 h-6 transform transition-transform duration-300 hover:scale-125" id="like-icon-{{ post.id }}" fill="{% if post.id in liked_posts %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                                <span class="font-medium" id="like-count-{{ post.id }}">{{ post.like_count }}</span>
+                            </button>
+                            <a href="{% url 'forum:post_detail' post.id %}" class="flex items-center space-x-2 text-gray-300 hover:text-green-400 transition-all duration-300 hover:scale-110 btn-interactive px-3 py-2 rounded-full hover:bg-white/10">
+                                <svg class="w-6 h-6 transform transition-transform duration-300 hover:scale-125" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                <span class="font-medium">{{ post.comment_count }}</span>
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+                <div class="mt-8 flex justify-center items-center space-x-3">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-5 py-2 glass-enhanced rounded-full text-white hover:bg-white/20 transition-all hover:scale-105 flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                            <span>Précédent</span>
+                        </a>
+                    {% endif %}
+                    <span class="px-5 py-2 glass-enhanced rounded-full text-white">
+                        Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                    </span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-5 py-2 glass-enhanced rounded-full text-white hover:bg-white/20 transition-all hover:scale-105 flex items-center space-x-2">
+                            <span>Suivant</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="glass-enhanced rounded-3xl p-12 text-center border border-white/20 fade-in-up">
+                <div class="flex justify-center mb-4">
+                    <svg class="w-16 h-16 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m4.5 0a12.05 12.05 0 01-3.75-1.5m-1.5 0a12.05 12.05 0 00-3.75 1.5m1.5 0a12.06 12.06 0 014.5 0M9 9.75a3 3 0 11-6 0 3 3 0 016 0zm12 0a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <p class="text-gray-300 text-lg mb-2">Aucune discussion dans ce thème pour le moment</p>
+                <p class="text-gray-400 text-sm">Soyez le premier à publier !</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Floating Chat Button (FAB) -->
+    <a href="{% url 'chat:list' %}" class="fixed bottom-6 right-6 z-50 group">
+        <div class="relative">
+            <div class="absolute inset-0 bg-gradient-gold rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse"></div>
+            <div class="relative w-14 h-14 bg-gradient-gold rounded-full flex items-center justify-center shadow-gold-lg hover:shadow-gold transition-all duration-300 hover:scale-110 hover:rotate-12">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+                </svg>
+            </div>
+        </div>
+    </a>
+</div>
+
+<script>
+    function toggleLike(postId) {
+        fetch(`/forum/post/${postId}/like/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            const likeBtn = document.getElementById(`like-btn-${postId}`);
+            const likeIcon = document.getElementById(`like-icon-${postId}`);
+            const likeCount = document.getElementById(`like-count-${postId}`);
+            
+            if (data.liked) {
+                likeIcon.setAttribute('fill', 'currentColor');
+                likeBtn.classList.add('text-red-500');
+                likeBtn.classList.remove('text-gray-300');
+            } else {
+                likeIcon.setAttribute('fill', 'none');
+                likeBtn.classList.remove('text-red-500');
+                likeBtn.classList.add('text-gray-300');
+            }
+            likeCount.textContent = data.like_count;
+        })
+        .catch(error => console.error('Error:', error));
+    }
+    
+    // Image preview
+    document.getElementById('image-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('image-preview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+{% endblock %}
+

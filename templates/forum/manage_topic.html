@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Gérer le sujet - {{ topic.name }} - Kongossa{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred pb-20">
+    <!-- Header -->
+    <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl border-b border-white/20">
+        <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
+            <a href="{% url 'forum:topic_detail' topic.slug %}" class="text-white/80 hover:text-white transition-all hover:scale-105 flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span>Retour</span>
+            </a>
+            <h1 class="text-white text-xl font-poppins font-bold">Gérer le sujet</h1>
+            <div class="w-20"></div>
+        </div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Statistiques -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="glass-enhanced rounded-2xl p-4 border border-white/20 text-center">
+                <div class="text-3xl mb-2">{{ topic.icon }}</div>
+                <p class="text-white font-semibold">{{ topic.name }}</p>
+            </div>
+            <div class="glass-enhanced rounded-2xl p-4 border border-white/20 text-center">
+                <p class="text-2xl text-purple-400 font-bold">{{ posts_count }}</p>
+                <p class="text-gray-300 text-sm">Discussion{{ posts_count|pluralize }}</p>
+            </div>
+            <div class="glass-enhanced rounded-2xl p-4 border border-white/20 text-center">
+                <p class="text-2xl text-blue-400 font-bold">{{ groups_count }}</p>
+                <p class="text-gray-300 text-sm">Groupe{{ groups_count|pluralize }}</p>
+            </div>
+        </div>
+        
+        <!-- Modifier les informations -->
+        <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+            <h2 class="text-white font-poppins font-bold text-lg mb-4 flex items-center space-x-2">
+                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span>Modifier les informations</span>
+            </h2>
+            <form method="POST" action="{% url 'forum:update_topic' topic.slug %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label for="name" class="block text-white font-semibold mb-2">Nom du sujet</label>
+                    <input 
+                        type="text" 
+                        id="name"
+                        name="name" 
+                        value="{{ topic.name }}"
+                        required
+                        maxlength="100"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                    >
+                </div>
+                <div>
+                    <label for="description" class="block text-white font-semibold mb-2">Description</label>
+                    <textarea 
+                        id="description"
+                        name="description" 
+                        rows="4"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none backdrop-blur-sm transition-all"
+                    >{{ topic.description }}</textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="icon" class="block text-white font-semibold mb-2">Icône (emoji)</label>
+                        <input 
+                            type="text" 
+                            id="icon"
+                            name="icon" 
+                            value="{{ topic.icon }}"
+                            maxlength="2"
+                            class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all text-center text-2xl"
+                        >
+                    </div>
+                    <div>
+                        <label for="color" class="block text-white font-semibold mb-2">Couleur</label>
+                        <div class="flex items-center space-x-3">
+                            <input 
+                                type="color" 
+                                id="color"
+                                name="color" 
+                                value="{{ topic.color }}"
+                                class="w-16 h-16 rounded-xl bg-white/10 border border-white/20 cursor-pointer"
+                            >
+                            <input 
+                                type="text" 
+                                value="{{ topic.color }}"
+                                id="color-text"
+                                class="flex-1 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end space-x-4 pt-4">
+                    <button 
+                        type="submit"
+                        class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white font-semibold hover:shadow-glow hover:scale-105 transition-all btn-interactive"
+                    >
+                        Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Supprimer le sujet -->
+        <div class="glass-enhanced rounded-3xl p-6 border border-red-500/20 fade-in-up">
+            <h2 class="text-red-400 font-poppins font-bold text-lg mb-4">Zone de danger</h2>
+            <p class="text-gray-300 text-sm mb-4">La désactivation du sujet est irréversible. Le sujet ne sera plus visible mais les discussions existantes seront conservées.</p>
+            <form method="POST" action="{% url 'forum:delete_topic' topic.slug %}" onsubmit="return confirm('Êtes-vous sûr de vouloir désactiver ce sujet ? Cette action est irréversible.');">
+                {% csrf_token %}
+                <button type="submit" class="px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-all">
+                    Désactiver le sujet
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Synchroniser le color picker et le champ texte
+    const colorInput = document.getElementById('color');
+    const colorTextInput = document.getElementById('color-text');
+    
+    colorInput.addEventListener('input', function() {
+        colorTextInput.value = this.value;
+    });
+    
+    colorTextInput.addEventListener('input', function() {
+        if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+            colorInput.value = this.value;
+        }
+    });
+</script>
+{% endblock %}
+

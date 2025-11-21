@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Story - Kongossa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .story-viewer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(20px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="story-viewer" x-data="storyViewer()" x-init="init()">
+    <div class="h-full flex flex-col">
+        <!-- Story Header -->
+        <div class="glass-dark tab-bar px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <a href="/feed/" class="text-white">←</a>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden">
+                    {% if story.user.avatar %}
+                        <img src="{{ story.user.avatar.url }}" alt="{{ story.user.username }}" class="w-full h-full object-cover">
+                    {% else %}
+                        <span class="text-white text-sm font-bold">{{ story.user.username|first|upper }}</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="text-white font-medium">{{ story.user.username }}</p>
+                    <p class="text-gray-400 text-xs">{{ story.created_at|timesince }} ago</p>
+                </div>
+            </div>
+            <a href="/feed/" class="text-white text-2xl">×</a>
+        </div>
+        
+        <!-- Story Content -->
+        <div class="flex-1 flex items-center justify-center relative">
+            {% if story.image %}
+                <img src="{{ story.image.url }}" alt="Story" class="max-w-full max-h-full object-contain">
+            {% elif story.video %}
+                <video src="{{ story.video.url }}" controls class="max-w-full max-h-full"></video>
+            {% endif %}
+            
+            <!-- Navigation Arrows -->
+            <button 
+                x-show="currentIndex > 0"
+                @click="previousStory()"
+                class="absolute left-4 text-white text-4xl hover:text-purple-400 transition"
+            >
+                ‹
+            </button>
+            <button 
+                x-show="currentIndex < totalStories - 1"
+                @click="nextStory()"
+                class="absolute right-4 text-white text-4xl hover:text-purple-400 transition"
+            >
+                ›
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function storyViewer() {
+        return {
+            currentIndex: {{ current_index }},
+            totalStories: {{ user_stories|length }},
+            stories: [
+                {% for s in user_stories %}
+                    { id: {{ s.id }}, url: '{% url "stories:viewer" s.id %}' }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            init() {
+                // Auto-advance after 5 seconds (optional)
+                // setTimeout(() => this.nextStory(), 5000);
+            },
+            nextStory() {
+                if (this.currentIndex < this.totalStories - 1) {
+                    window.location.href = this.stories[this.currentIndex + 1].url;
+                }
+            },
+            previousStory() {
+                if (this.currentIndex > 0) {
+                    window.location.href = this.stories[this.currentIndex - 1].url;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}
+

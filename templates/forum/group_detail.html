@@ -1,0 +1,1068 @@
+{% extends 'base.html' %}
+{% load chat_filters %}
+
+{% block title %}{{ group.name }} - Kongossa{% endblock %}
+
+{% block extra_css %}
+<!-- Masquer les messages d'alerte dans la messagerie -->
+<style>
+    .fixed.top-4.right-4 {
+        display: none !important;
+    }
+    
+    /* Dégradé bleu/vert pour le fond de messagerie de groupe avec animations */
+    .chat-bg-gradient {
+        background: linear-gradient(135deg, #1B263B 0%, #0D1B2A 25%, #1B263B 50%, #0D1B2A 75%, #1B263B 100%);
+        background-size: 400% 400%;
+        animation: chat-gradient-shift 20s ease infinite;
+        min-height: 100vh;
+        position: relative;
+    }
+    
+    .chat-bg-gradient::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
+            radial-gradient(circle at 85% 75%, rgba(74, 222, 128, 0.1) 0%, transparent 45%),
+            radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+        animation: chat-pulse 10s ease-in-out infinite;
+        pointer-events: none;
+    }
+    
+    .chat-bg-gradient > * {
+        position: relative;
+        z-index: 1;
+    }
+    
+    @keyframes chat-gradient-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes chat-pulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+    }
+    
+    /* Glassmorphism pour messagerie */
+    .glass-card {
+        background: rgba(27, 38, 59, 0.7);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 20px rgba(13, 27, 42, 0.4);
+    }
+    
+    /* Tab bar plus foncée pour messagerie */
+    .glass-card.tab-bar {
+        background: rgba(13, 27, 42, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Container de chat */
+    .chat-container {
+        height: calc(100vh - 80px);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+    
+    @media (max-width: 768px) {
+        .chat-container {
+            height: calc(100vh - 60px);
+            min-height: 0;
+        }
+    }
+    
+    /* Zone des messages */
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        min-height: 0;
+    }
+    
+    @media (min-width: 768px) {
+        .messages-container {
+            padding: 1.5rem;
+        }
+    }
+    
+    /* Bulles de message */
+    .message-bubble {
+        max-width: 85%;
+        word-wrap: break-word;
+        word-break: break-word;
+        margin-bottom: 0.75rem;
+        animation: fadeIn 0.3s ease-in;
+        padding: 0.75rem 1rem;
+        line-height: 1.5;
+    }
+    
+    @media (min-width: 768px) {
+    .message-bubble {
+        max-width: 70%;
+        padding: 0.875rem 1.25rem;
+        }
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Message envoyé - Vert élégant avec meilleur contraste */
+    .message-sent {
+        margin-left: auto;
+        background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%);
+        color: #0D1B2A;
+        border-radius: 20px 20px 6px 20px;
+        box-shadow: 
+            0 4px 16px rgba(16, 185, 129, 0.35),
+            0 2px 8px rgba(16, 185, 129, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(74, 222, 128, 0.4);
+        font-weight: 400;
+        position: relative;
+    }
+    
+    .message-sent::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+        border-radius: inherit;
+        pointer-events: none;
+    }
+    
+    .message-sent * {
+        position: relative;
+        z-index: 1;
+        color: #0D1B2A;
+    }
+    
+    /* Message reçu - Bleu élégant avec meilleur contraste */
+    .message-received {
+        margin-right: auto;
+        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%);
+        color: #FFFFFF;
+        border-radius: 20px 20px 20px 6px;
+        box-shadow: 
+            0 4px 16px rgba(59, 130, 246, 0.35),
+            0 2px 8px rgba(59, 130, 246, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(96, 165, 250, 0.4);
+        font-weight: 400;
+        position: relative;
+    }
+    
+    .message-received::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
+        border-radius: inherit;
+        pointer-events: none;
+    }
+    
+    .message-received * {
+        position: relative;
+        z-index: 1;
+        color: #FFFFFF;
+    }
+    
+    /* Amélioration du texte dans les bulles */
+    .message-bubble p,
+    .message-bubble span,
+    .message-bubble div {
+        color: inherit;
+    }
+    
+    /* Liens dans les messages */
+    .message-bubble a {
+        color: inherit;
+        text-decoration: underline;
+        opacity: 0.9;
+        transition: opacity 0.2s;
+    }
+    
+    .message-bubble a:hover {
+        opacity: 1;
+    }
+    
+    /* Scrollbar personnalisée */
+    .messages-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .messages-container::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }
+    
+    /* Sidebar minimisée */
+    .sidebar-minimized {
+        width: 80px;
+    }
+    
+    .sidebar-expanded {
+        width: 320px;
+    }
+    
+    @media (max-width: 768px) {
+        .sidebar-minimized {
+            width: 0;
+            transform: translateX(-100%);
+        }
+        .sidebar-expanded {
+            width: 100%;
+            max-width: 320px;
+            position: fixed;
+            z-index: 50;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ sidebarExpanded: window.innerWidth >= 768, filterType: 'all' }" class="h-screen chat-bg-gradient flex relative overflow-hidden">
+    <!-- Overlay pour mobile -->
+    <div 
+        x-show="sidebarExpanded && window.innerWidth < 768"
+        @click="sidebarExpanded = false"
+        x-transition:enter="transition-opacity ease-linear duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition-opacity ease-linear duration-300"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 bg-black/50 z-40 md:hidden"
+        style="display: none;"
+    ></div>
+    
+    <!-- Sidebar - Liste des conversations et groupes (même que /chat/) -->
+    <aside 
+        :class="sidebarExpanded ? 'sidebar-expanded' : 'sidebar-minimized'"
+        class="h-screen bg-white/10 backdrop-blur-xl border-r border-white/20 transition-all duration-300 z-50 md:z-auto flex flex-col overflow-hidden"
+    >
+        <!-- Header Sidebar -->
+        <div class="p-4 border-b border-white/20 flex-shrink-0">
+            <div class="flex items-center justify-between mb-4" x-show="sidebarExpanded">
+                <h2 class="text-white text-xl font-bold">Messages</h2>
+                <button 
+                    @click="sidebarExpanded = false"
+                    class="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                    title="Réduire"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Bouton pour développer (quand minimisée) -->
+            <div x-show="!sidebarExpanded" class="flex justify-center">
+                <button 
+                    @click="sidebarExpanded = true"
+                    class="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                    title="Développer"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Recherche (seulement quand développée) -->
+            <div class="relative" x-show="sidebarExpanded" x-transition>
+                <input 
+                    type="text" 
+                    placeholder="Rechercher..."
+                    class="w-full px-4 py-2 pl-10 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
+                >
+                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            
+            <!-- Filtres (seulement quand développée) -->
+            <div class="mt-3 flex space-x-2" x-show="sidebarExpanded" x-transition>
+                <button 
+                    @click="filterType = 'all'"
+                    :class="filterType === 'all' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                    Tous
+                </button>
+                <button 
+                    @click="filterType = 'conversations'"
+                    :class="filterType === 'conversations' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                    Chats
+                </button>
+                <button 
+                    @click="filterType = 'groups'"
+                    :class="filterType === 'groups' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                    Groupes
+                </button>
+            </div>
+        </div>
+        
+        <!-- Liste des conversations et groupes -->
+        <div class="flex-1 overflow-y-auto">
+            {% if all_items %}
+                <div class="p-2 space-y-1">
+                    {% for item in all_items %}
+                        {% if item.type == 'conversation' and item.other_user %}
+                            <div x-show="filterType === 'all' || filterType === 'conversations'">
+                            <!-- Conversation privée -->
+                            <a 
+                                href="{% url 'chat:detail' item.conversation.id %}" 
+                                class="block glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200 group relative"
+                                :title="sidebarExpanded ? '' : '{{ item.other_user.username }}'"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <!-- Avatar avec statut -->
+                                    <div class="relative flex-shrink-0">
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
+                                            {% if item.other_user.avatar %}
+                                                <img src="{{ item.other_user.avatar.url }}" alt="{{ item.other_user.username }}" class="w-full h-full object-cover">
+                                            {% else %}
+                                                <span class="text-white text-lg font-bold">{{ item.other_user.username|first|upper }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <!-- Pastille de statut -->
+                                        <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 border-2 border-white/20 rounded-full"></span>
+                                    </div>
+                                    
+                                    <!-- Informations (cachées quand minimisée) -->
+                                    <div class="flex-1 min-w-0" x-show="sidebarExpanded" x-transition>
+                                        <div class="flex items-center justify-between mb-1">
+                                            <p class="text-white font-semibold text-sm truncate">{{ item.other_user.username }}</p>
+                                            {% if item.last_message %}
+                                                <span class="text-white/60 text-xs ml-2 flex-shrink-0">
+                                                    {{ item.last_message.created_at|format_chat_time }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            {% if item.last_message %}
+                                                <p class="text-white/80 text-sm truncate">{{ item.last_message.content|truncatewords:8 }}</p>
+                                            {% else %}
+                                                <p class="text-white/60 text-sm italic">Aucun message</p>
+                                            {% endif %}
+                                            {% if item.unread_count > 0 %}
+                                                <span class="ml-2 flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                    <span class="text-white text-xs font-bold">{{ item.unread_count }}</span>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            </div>
+                        {% elif item.type == 'group' %}
+                            <div x-show="filterType === 'all' || filterType === 'groups'">
+                            <!-- Groupe -->
+                            <a 
+                                href="{% url 'forum:group_detail' item.group.id %}" 
+                                class="block glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200 group relative {% if item.group.id == group.id %}bg-white/25{% endif %}"
+                                :title="sidebarExpanded ? '' : '{{ item.group.name }}'"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <!-- Avatar du groupe -->
+                                    <div class="relative flex-shrink-0">
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
+                                            {% if item.group.image %}
+                                                <img src="{{ item.group.image.url }}" alt="{{ item.group.name }}" class="w-full h-full object-cover">
+                                            {% else %}
+                                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Informations (cachées quand minimisée) -->
+                                    <div class="flex-1 min-w-0" x-show="sidebarExpanded" x-transition>
+                                        <div class="flex items-center justify-between mb-1">
+                                            <p class="text-white font-semibold text-sm truncate">{{ item.group.name }}</p>
+                                            {% if item.last_message %}
+                                                <span class="text-white/60 text-xs ml-2 flex-shrink-0">
+                                                    {{ item.last_message.created_at|format_chat_time }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            {% if item.last_message %}
+                                                <p class="text-white/80 text-sm truncate">
+                                                    <span class="font-medium">{{ item.last_message.sender.username }}:</span> {{ item.last_message.content|truncatewords:6 }}
+                                                </p>
+                                            {% else %}
+                                                <p class="text-white/60 text-sm italic">Aucun message</p>
+                                            {% endif %}
+                                            {% if item.unread_count > 0 %}
+                                                <span class="ml-2 flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                    <span class="text-white text-xs font-bold">{{ item.unread_count }}</span>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-8 text-center" x-show="sidebarExpanded" x-transition>
+                    <svg class="w-16 h-16 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+                    </svg>
+                    <p class="text-white/80 font-semibold mb-2">Aucune conversation</p>
+                    <p class="text-white/60 text-sm mb-4">Commencez à discuter avec vos contacts</p>
+                    <a href="{% url 'chat:contacts' %}" class="inline-flex items-center space-x-2 px-6 py-3 rounded-full bg-white/20 hover:bg-white/30 text-white font-semibold transition-all duration-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Nouvelle conversation</span>
+                    </a>
+                    </div>
+                {% endif %}
+        </div>
+        
+        <!-- Bouton Nouveau (en bas de la sidebar) -->
+        <div class="p-4 border-t border-white/20 flex-shrink-0" x-show="sidebarExpanded" x-transition>
+            <a 
+                href="{% url 'chat:contacts' %}" 
+                class="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold transition-all duration-200"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Nouveau message</span>
+            </a>
+                </div>
+        
+        <!-- Bouton Nouveau (minimisé) -->
+        <div class="p-4 border-t border-white/20 flex-shrink-0 flex justify-center" x-show="!sidebarExpanded" x-transition>
+            <a 
+                href="{% url 'chat:contacts' %}" 
+                class="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 flex items-center justify-center"
+                title="Nouveau message"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+            </a>
+            </div>
+    </aside>
+    
+    <!-- Zone de chat principale -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <!-- Header de groupe -->
+        <header class="glass-card tab-bar border-b border-white/20 p-2 md:p-4 flex items-center justify-between gap-2 flex-shrink-0">
+            <div class="flex items-center space-x-2 md:space-x-3 min-w-0 flex-1">
+                <!-- Bouton retour au feed (mobile) -->
+                <a 
+                    href="{% url 'forum:feed' %}"
+                    class="md:hidden text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                    title="Retour au feed"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                    </svg>
+                </a>
+                
+                <!-- Bouton menu mobile -->
+                <button 
+                    @click="sidebarExpanded = !sidebarExpanded"
+                    class="md:hidden text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                    title="Menu"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                    </button>
+                
+                <!-- Avatar du groupe -->
+                <div class="relative flex-shrink-0">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
+                        {% if group.image %}
+                            <img src="{{ group.image.url }}" alt="{{ group.name }}" class="w-full h-full object-cover">
+            {% else %}
+                            <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+            {% endif %}
+        </div>
+    </div>
+    
+                <!-- Nom et membres -->
+                <div class="min-w-0 flex-1 flex flex-col leading-tight">
+                    <button 
+                        onclick="document.getElementById('members-modal').classList.remove('hidden')"
+                        class="text-left hover:opacity-80 transition-opacity w-full"
+                        title="Voir les membres"
+                    >
+                        <span class="text-white font-semibold text-sm md:text-base truncate block mb-0.5">{{ group.name }}</span>
+                        <span class="text-white/70 text-xs block">{{ group.member_count }} membre{{ group.member_count|pluralize }}</span>
+                    </button>
+            </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
+                <!-- Bouton retour au feed (desktop) -->
+                <a 
+                    href="{% url 'forum:feed' %}"
+                    class="hidden md:flex text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                    title="Retour au feed"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                    </svg>
+                </a>
+                
+                {% if group.creator == user %}
+                <a href="{% url 'forum:manage_group' group.id %}" class="text-white hover:bg-white/20 p-1.5 md:p-2 rounded-lg transition-colors flex-shrink-0" title="Gérer le groupe">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </a>
+                {% endif %}
+                <button class="text-white hover:bg-white/20 p-1.5 md:p-2 rounded-lg transition-colors flex-shrink-0" title="Options">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Description (si présente) -->
+        {% if group.description %}
+        <div class="glass-card border-b border-white/20 px-2 md:px-4 py-2">
+            <p class="text-white/80 text-xs md:text-sm">{{ group.description }}</p>
+        </div>
+    {% endif %}
+    
+        <!-- Zone des messages -->
+    {% if is_member %}
+        <div class="chat-container">
+            <div class="messages-container" id="messages-container">
+                {% for message in messages %}
+                    <div class="message-bubble {% if message.sender == user %}message-sent{% else %}message-received{% endif %}">
+                        <div>
+                        {% if message.sender != user %}
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <a href="{% url 'users:profile' message.sender.username %}" class="flex items-center space-x-2 hover:opacity-80 transition-opacity group">
+                                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                                            {% if message.sender.avatar %}
+                                                <img src="{{ message.sender.avatar.url }}" alt="{{ message.sender.username }}" class="w-full h-full object-cover">
+                                            {% else %}
+                                                <span class="text-white text-xs font-bold">{{ message.sender.username|first|upper }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="text-xs font-semibold opacity-90">{{ message.sender.username }}</p>
+                                    </a>
+                                </div>
+                            {% endif %}
+                            {% if message.content %}
+                                <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
+                        {% endif %}
+                        {% if message.image %}
+                                <img src="{{ message.image.url }}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('{{ message.image.url }}')">
+                            {% endif %}
+                            {% if message.file %}
+                                <div class="mt-2 p-3 rounded-xl bg-white/30 backdrop-blur-sm flex items-center space-x-3 border border-white/20">
+                                    <div class="flex-shrink-0">
+                                        {% if message.file_name %}
+                                            {% if ".pdf" in message.file_name|lower %}
+                                                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                                </svg>
+                                            {% elif ".doc" in message.file_name|lower %}
+                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                                </svg>
+                                            {% elif ".xls" in message.file_name|lower %}
+                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                                </svg>
+                                            {% elif ".zip" in message.file_name|lower or ".rar" in message.file_name|lower %}
+                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                                </svg>
+                                            {% else %}
+                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                                </svg>
+                                            {% endif %}
+                                        {% else %}
+                                            <svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                            </svg>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs md:text-sm font-semibold opacity-90 truncate">{{ message.file_name|default:"Fichier" }}</p>
+                                        <p class="text-xs opacity-75">Fichier joint</p>
+                                    </div>
+                                    <a href="{{ message.file.url }}" download class="flex-shrink-0 text-blue-500 hover:text-blue-700 transition-colors" title="Télécharger">
+                                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                        </svg>
+                                    </a>
+                                </div>
+                        {% endif %}
+                            <div class="flex items-center {% if message.sender == user %}justify-end{% else %}justify-start{% endif %} mt-1.5 space-x-1">
+                                <span class="text-xs opacity-70">
+                                    {{ message.created_at|format_chat_time }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="text-center text-white/60 mt-8">
+                        <p>Aucun message. Commencez la conversation !</p>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Input de message -->
+            <div class="glass-card tab-bar border-t border-white/20 p-2 md:p-4 relative flex-shrink-0" x-data="{ 
+                emojiPickerOpen: false, 
+                selectedFile: null, 
+                fileInput: null,
+                emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '😵‍💫', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '▶️', '⏸️', '⏯️', '⏹️', '⏺️', '⏭️', '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '💲', '💱', '™️', '©️', '®️', '〰️', '➰', '➿', '🔚', '🔙', '🔛', '🔜', '🔝', '✔️', '☑️', '🔘', '⚪', '⚫', '🔴', '🔵', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛', '⬜', '🟫', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '👁️‍🗨️', '💬', '💭', '🗯️', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧'],
+                insertEmoji(emoji) {
+                    const input = document.getElementById('group-message-input');
+                    if (!input) return;
+                    const cursorPos = input.selectionStart || input.value.length;
+                    input.value = input.value.slice(0, cursorPos) + emoji + input.value.slice(cursorPos);
+                    input.focus();
+                    input.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
+                    // Auto-resize après insertion d'emoji
+                    if (typeof autoResizeTextarea === 'function') {
+                        autoResizeTextarea(input);
+                    }
+                },
+                formatFileSize(bytes) {
+                    if (!bytes) return '';
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                }
+            }">
+                <!-- Aperçu du fichier sélectionné -->
+                <div x-show="selectedFile" class="mb-2 md:mb-3 p-2 md:p-3 rounded-xl bg-white/20 flex items-center justify-between gap-2" x-transition>
+                    <div class="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+                        <svg class="w-6 h-6 md:w-8 md:h-8 text-white/80 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs md:text-sm font-semibold text-white truncate" x-text="selectedFile ? selectedFile.name : 'Fichier'"></p>
+                            <p class="text-xs text-white/70 truncate" x-text="selectedFile ? formatFileSize(selectedFile.size) : ''"></p>
+                        </div>
+                    </div>
+                    <button @click="selectedFile = null; if(fileInput) fileInput.value = ''" class="text-white/80 hover:text-white transition-colors flex-shrink-0">
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Sélecteur d'emojis -->
+                <div x-show="emojiPickerOpen" @click.away="emojiPickerOpen = false" class="absolute bottom-full left-2 md:left-4 mb-2 glass-card rounded-2xl p-2 md:p-4 w-[calc(100vw-1rem)] md:w-80 max-h-64 overflow-y-auto z-50 shadow-2xl" x-transition style="display: none;">
+                    <div class="grid grid-cols-8 gap-1 md:gap-2">
+                        <template x-for="emoji in emojis" :key="emoji">
+                            <button 
+                                @click="insertEmoji(emoji); emojiPickerOpen = false"
+                                class="text-2xl hover:bg-white/20 rounded-lg p-2 transition-colors hover:scale-110"
+                                :title="emoji"
+                                x-text="emoji"
+                            ></button>
+                        </template>
+                    </div>
+                </div>
+                
+                <form id="group-message-form" class="flex items-center space-x-2 md:space-x-3" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" id="group-file-input" name="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" class="hidden" @change="selectedFile = $event.target.files[0]">
+                    <input type="hidden" id="group-file-name-input" name="file_name">
+                    
+                    <!-- Bouton emoji -->
+                    <button 
+                        type="button"
+                        @click="emojiPickerOpen = !emojiPickerOpen"
+                        class="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
+                        title="Emoji"
+                    >
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Bouton pièce jointe -->
+                    <button 
+                        type="button"
+                        @click="document.getElementById('group-file-input').click(); fileInput = document.getElementById('group-file-input')"
+                        class="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
+                        title="Pièce jointe"
+                    >
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-1.06-1.06a2.548 2.548 0 00-3.603 3.603l1.06 1.06" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Input texte multiligne -->
+                    <textarea 
+                        id="group-message-input"
+                        placeholder="Écrire un message…"
+                        rows="1"
+                        class="flex-1 px-3 md:px-4 py-2 md:py-3 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all text-sm md:text-base resize-none overflow-hidden max-h-32"
+                        autocomplete="off"
+                        style="min-height: 2.5rem;"
+                    ></textarea>
+                    
+                    <!-- Bouton envoi -->
+                    <button 
+                        type="submit"
+                        class="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
+                        title="Envoyer"
+                    >
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <div class="flex-1 flex items-center justify-center">
+            <div class="text-center glass-card rounded-3xl p-8 max-w-md">
+                <svg class="w-16 h-16 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.645-5.963-1.8A8.967 8.967 0 016 18.72m3.94 1.022a8.97 8.97 0 01-1.88-.469 3 3 0 00-2.16-1.09 9.034 9.034 0 002.5-1.98 8.967 8.967 0 012.54 1.449m-3.78 0a9.05 9.05 0 01-1.5-2.5 3 3 0 00-2.16-1.09 9.034 9.034 0 002.5-1.98 8.967 8.967 0 012.54 1.449M12 6.75a3 3 0 100 6 3 3 0 000-6z" />
+                </svg>
+                <p class="text-white/80 font-semibold mb-2">Vous n'êtes pas membre de ce groupe</p>
+                <p class="text-white/60 text-sm mb-4">Les groupes sont accessibles uniquement via invitation</p>
+            </div>
+        </div>
+    {% endif %}
+    </main>
+</div>
+
+<!-- Modal des membres du groupe -->
+<div id="members-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) this.classList.add('hidden')">
+    <div class="glass-card rounded-3xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-white font-bold text-xl flex items-center space-x-2">
+                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Membres du groupe ({{ group.member_count }})</span>
+            </h2>
+            <button 
+                onclick="document.getElementById('members-modal').classList.add('hidden')"
+                class="text-white/70 hover:text-white transition-colors"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <div class="space-y-3">
+            {% for member in group_members %}
+            <a href="{% url 'users:profile' member.username %}" class="flex items-center space-x-3 glass rounded-xl p-3 hover:bg-white/20 transition-all group">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/30">
+                    {% if member.avatar %}
+                        <img src="{{ member.avatar.url }}" alt="{{ member.username }}" class="w-full h-full object-cover">
+                    {% else %}
+                        <span class="text-white text-sm font-bold">{{ member.username|first|upper }}</span>
+                    {% endif %}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-white font-semibold text-sm truncate group-hover:text-blue-300 transition-colors">
+                        {{ member.username }}
+                        {% if member == group.creator %}
+                            <span class="text-blue-400 text-xs ml-2">(Créateur)</span>
+                        {% endif %}
+                    </p>
+                    {% if member.bio %}
+                        <p class="text-white/60 text-xs truncate">{{ member.bio }}</p>
+                    {% endif %}
+                </div>
+                <svg class="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+            </a>
+            {% empty %}
+            <p class="text-white/60 text-center py-4">Aucun membre</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if is_member %}
+<script>
+    const groupId = {{ group.id }};
+    const currentUserId = {{ user.id }};
+    const messagesContainer = document.getElementById('messages-container');
+    const messageInput = document.getElementById('group-message-input');
+    
+    // Fonction pour vérifier si l'utilisateur est près du bas
+    function isNearBottom(container, threshold = 100) {
+        if (!container) return false;
+        return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    }
+    
+    // Fonction pour scroller vers le bas seulement si l'utilisateur est déjà près du bas
+    function scrollToBottomIfNeeded(container) {
+        if (isNearBottom(container)) {
+            requestAnimationFrame(() => {
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+    }
+    
+    // Scroll to bottom on load (une seule fois)
+    if (messagesContainer) {
+        setTimeout(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+    }
+    
+    // Auto-resize textarea
+    function autoResizeTextarea(textarea) {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        const newHeight = Math.min(textarea.scrollHeight, 128); // max 128px (max-h-32)
+        textarea.style.height = newHeight + 'px';
+    }
+    
+    // Initialiser la hauteur du textarea
+    if (messageInput) {
+        autoResizeTextarea(messageInput);
+        
+        // Handle auto-resize
+        messageInput.addEventListener('input', function() {
+            autoResizeTextarea(this);
+        });
+        
+        // Gérer Enter (envoyer) vs Shift+Enter (nouvelle ligne)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.querySelector('#group-message-form').dispatchEvent(new Event('submit'));
+            }
+        });
+    }
+    
+    document.querySelector('#group-message-form').onsubmit = function(e) {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        const fileInput = document.getElementById('group-file-input');
+        const hasFile = fileInput && fileInput.files.length > 0;
+        
+        if (!message && !hasFile) return;
+        
+        const formData = new FormData();
+        if (message) {
+        formData.append('content', message);
+        }
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        // Ajouter le fichier/image si sélectionné
+        if (fileInput && fileInput.files.length > 0) {
+            const selectedFile = fileInput.files[0];
+            // Vérifier si c'est une image
+            if (selectedFile.type && selectedFile.type.startsWith('image/')) {
+                formData.append('image', selectedFile);
+            } else {
+                formData.append('file', selectedFile);
+                if (selectedFile.name) {
+                    formData.append('file_name', selectedFile.name);
+                }
+            }
+        }
+        
+        fetch(`{% url 'forum:send_group_message' group.id %}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message-bubble message-sent';
+                
+                const time = new Date(data.message.created_at).toLocaleTimeString('fr-FR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                let contentHtml = '';
+                if (data.message.content) {
+                    contentHtml += `<p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(data.message.content)}</p>`;
+                }
+                
+                // Ajouter l'image si présente
+                if (data.message.image) {
+                    contentHtml += `<img src="${data.message.image}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('${data.message.image}')">`;
+                }
+                
+                // Ajouter le fichier si présent (et ce n'est pas une image)
+                if (data.message.file && data.message.file_name && !data.message.image) {
+                    const fileIcon = getFileIcon(data.message.file_name);
+                    contentHtml += `
+                        <div class="mt-2 p-3 rounded-xl bg-white/50 flex items-center space-x-3">
+                            <div class="flex-shrink-0">${fileIcon}</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs md:text-sm font-semibold opacity-90 truncate">${escapeHtml(data.message.file_name)}</p>
+                                <p class="text-xs opacity-75">Fichier joint</p>
+                            </div>
+                            <a href="${data.message.file}" download class="flex-shrink-0 text-blue-500 hover:text-blue-700 transition-colors" title="Télécharger">
+                                <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                            </a>
+                        </div>
+                    `;
+                }
+                
+                messageDiv.innerHTML = `
+                    <div>
+                        ${contentHtml}
+                        <div class="flex items-center justify-end mt-1.5 space-x-1">
+                            <span class="text-xs opacity-70">${time}</span>
+                        </div>
+                    </div>
+                `;
+                
+                messagesContainer.appendChild(messageDiv);
+                
+                // Scroller seulement si l'utilisateur est près du bas
+                scrollToBottomIfNeeded(messagesContainer);
+                
+                messageInput.value = '';
+                if (messageInput) {
+                    messageInput.style.height = 'auto';
+                    autoResizeTextarea(messageInput);
+                }
+                
+                // Réinitialiser le fichier sélectionné
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+                // Réinitialiser Alpine.js selectedFile
+                try {
+                    const alpineElement = document.querySelector('[x-data*="selectedFile"]');
+                    if (alpineElement && Alpine && Alpine.$data) {
+                        const alpineData = Alpine.$data(alpineElement);
+                        if (alpineData && alpineData.selectedFile !== undefined) {
+                            alpineData.selectedFile = null;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Could not reset Alpine selectedFile:', e);
+                }
+            } else if (data.error) {
+                console.error('Error:', data.error);
+                alert('Erreur: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erreur lors de l\'envoi du message');
+        });
+    };
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function getFileIcon(fileName) {
+        const lowerName = fileName.toLowerCase();
+        if (lowerName.includes('.pdf')) {
+            return '<svg class="w-6 h-6 md:w-8 md:h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+        } else if (lowerName.includes('.doc')) {
+            return '<svg class="w-6 h-6 md:w-8 md:h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+        } else if (lowerName.includes('.xls')) {
+            return '<svg class="w-6 h-6 md:w-8 md:h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+        } else if (lowerName.includes('.zip') || lowerName.includes('.rar')) {
+            return '<svg class="w-6 h-6 md:w-8 md:h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+        } else {
+            return '<svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+        }
+    }
+    
+    // Modal pour afficher les images en grand
+    function openImageModal(imageUrl) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4';
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        };
+        modal.innerHTML = `
+            <div class="relative max-w-4xl max-h-full">
+                <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-white hover:text-gray-300 z-10 bg-black/50 rounded-full p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <img src="${imageUrl}" alt="Image" class="max-w-full max-h-[90vh] rounded-lg shadow-2xl">
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+</script>
+{% endif %}
+{% endblock %}

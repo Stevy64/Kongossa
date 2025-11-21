@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Gérer le groupe - {{ group.name }} - Kongossa{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred pb-20">
+    <!-- Header -->
+    <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl border-b border-white/20">
+        <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
+            <a href="{% url 'forum:group_detail' group.id %}" class="text-white/80 hover:text-white transition-all hover:scale-105 flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span>Retour</span>
+            </a>
+            <h1 class="text-white text-xl font-poppins font-bold">Gérer le groupe</h1>
+            <div class="w-20"></div>
+        </div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Informations du groupe -->
+        <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+            <h2 class="text-white font-poppins font-bold text-lg mb-4 flex items-center space-x-2">
+                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span>Modifier les informations</span>
+            </h2>
+            <form method="POST" action="{% url 'forum:update_group' group.id %}" enctype="multipart/form-data" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label for="name" class="block text-white font-semibold mb-2">Nom du groupe</label>
+                    <input 
+                        type="text" 
+                        id="name"
+                        name="name" 
+                        value="{{ group.name }}"
+                        required
+                        maxlength="100"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                    >
+                </div>
+                <div>
+                    <label for="description" class="block text-white font-semibold mb-2">Description</label>
+                    <textarea 
+                        id="description"
+                        name="description" 
+                        rows="4"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none backdrop-blur-sm transition-all"
+                    >{{ group.description }}</textarea>
+                </div>
+                <div>
+                    <label for="image" class="block text-white font-semibold mb-2">Image du groupe</label>
+                    {% if group.image %}
+                        <div class="mb-2">
+                            <img src="{{ group.image.url }}" alt="{{ group.name }}" class="w-24 h-24 rounded-xl object-cover border border-white/20">
+                        </div>
+                    {% endif %}
+                    <input 
+                        type="file" 
+                        id="image"
+                        name="image" 
+                        accept="image/*"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                    >
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input 
+                        type="checkbox" 
+                        id="is_public"
+                        name="is_public" 
+                        {% if group.is_public %}checked{% endif %}
+                        class="w-5 h-5 rounded bg-white/10 border-white/20 text-purple-600 focus:ring-purple-500"
+                    >
+                    <label for="is_public" class="text-white text-sm">Groupe public</label>
+                </div>
+                <div class="flex items-center justify-end space-x-4 pt-4">
+                    <button 
+                        type="submit"
+                        class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white font-semibold hover:shadow-glow hover:scale-105 transition-all btn-interactive"
+                    >
+                        Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Demandes d'accès en attente -->
+        {% if pending_requests %}
+        <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+            <h2 class="text-white font-poppins font-bold text-lg mb-4 flex items-center space-x-2">
+                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Demandes d'accès en attente</span>
+            </h2>
+            <div class="space-y-3">
+                {% for req in pending_requests %}
+                <div class="glass rounded-2xl p-4 border border-white/10">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden">
+                                {% if req.user.avatar %}
+                                    <img src="{{ req.user.avatar.url }}" alt="{{ req.user.username }}" class="w-full h-full object-cover">
+                                {% else %}
+                                    <span class="text-white text-sm font-bold">{{ req.user.username|first|upper }}</span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="text-white font-semibold">{{ req.user.username }}</p>
+                                {% if req.message %}
+                                    <p class="text-gray-300 text-sm">{{ req.message }}</p>
+                                {% endif %}
+                                <p class="text-gray-400 text-xs">{{ req.created_at|timesince }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <form method="POST" action="{% url 'forum:approve_group_request' req.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-all">
+                                    Approuver
+                                </button>
+                            </form>
+                            <form method="POST" action="{% url 'forum:reject_group_request' req.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-all">
+                                    Rejeter
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Membres du groupe -->
+        <div class="glass-enhanced rounded-3xl p-6 mb-6 border border-white/20 fade-in-up">
+            <h2 class="text-white font-poppins font-bold text-lg mb-4 flex items-center space-x-2">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Membres ({{ group.member_count }})</span>
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {% for member in group.members.all %}
+                <div class="flex items-center space-x-2 glass rounded-xl p-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden">
+                        {% if member.avatar %}
+                            <img src="{{ member.avatar.url }}" alt="{{ member.username }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <span class="text-white text-xs font-bold">{{ member.username|first|upper }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="text-white text-sm truncate">{{ member.username }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Supprimer le groupe -->
+        <div class="glass-enhanced rounded-3xl p-6 border border-red-500/20 fade-in-up">
+            <h2 class="text-red-400 font-poppins font-bold text-lg mb-4">Zone de danger</h2>
+            <p class="text-gray-300 text-sm mb-4">La suppression du groupe est irréversible. Tous les messages et données seront perdus.</p>
+            <form method="POST" action="{% url 'forum:delete_group' group.id %}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce groupe ? Cette action est irréversible.');">
+                {% csrf_token %}
+                <button type="submit" class="px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-all">
+                    Supprimer le groupe
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

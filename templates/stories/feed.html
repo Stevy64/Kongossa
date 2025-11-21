@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Stories - Kongossa{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred">
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <h1 class="text-white text-2xl font-poppins font-bold mb-6">Stories</h1>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for user_data in users_with_stories %}
+                <a href="{% url 'stories:viewer' user_data.stories.0.id %}" class="block">
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 p-0.5 mx-auto mb-2">
+                            <div class="w-full h-full rounded-full bg-gray-900 flex items-center justify-center overflow-hidden">
+                                {% if user_data.user.avatar %}
+                                    <img src="{{ user_data.user.avatar.url }}" alt="{{ user_data.user.username }}" class="w-full h-full object-cover">
+                                {% else %}
+                                    <span class="text-white text-sm font-bold">{{ user_data.user.username|first|upper }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-white text-sm font-medium">{{ user_data.user.username }}</p>
+                        <p class="text-gray-400 text-xs">{{ user_data.stories|length }} story{{ user_data.stories|length|pluralize }}</p>
+                    </div>
+                </a>
+            {% empty %}
+                <div class="col-span-full glass rounded-2xl p-8 text-center">
+                    <p class="text-gray-400">Aucune story active pour le moment</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

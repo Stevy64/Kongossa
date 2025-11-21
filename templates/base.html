@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Kongossa - Le forum gabonais moderne{% endblock %}</title>
+    
+    <!-- TailwindCSS CDN avec configuration personnalisée -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            'primary': '#0D1B2A',
+                            'surface': '#1B263B',
+                            'accent': '#F0C419',
+                            'white': '#FFFFFF',
+                        },
+                        'navy': {
+                            'dark': '#0D1B2A',
+                            'light': '#1B263B',
+                        },
+                        'gold': {
+                            'DEFAULT': '#F0C419',
+                            'light': '#F5D547',
+                            'dark': '#D4A917',
+                        },
+                        'green': {
+                            'DEFAULT': '#10B981',
+                            'light': '#34D399',
+                            'dark': '#059669',
+                            'chat': '#4ADE80',
+                        },
+                        'blue': {
+                            'chat': '#3B82F6',
+                            'light': '#60A5FA',
+                            'dark': '#2563EB',
+                        },
+                        'green': {
+                            'chat': '#4ADE80',
+                            'light': '#34D399',
+                            'dark': '#10B981',
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Google Fonts - Inter Light & Outfit Light (polices raffinées et légères) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            font-weight: 300;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 300;
+            letter-spacing: -0.01em;
+        }
+        
+        .font-poppins {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            font-weight: 300;
+            letter-spacing: -0.02em;
+        }
+        
+        /* Ajustements des poids de police pour plus de légèreté */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 300;
+            letter-spacing: -0.03em;
+        }
+        
+        .font-bold {
+            font-weight: 400 !important;
+        }
+        
+        .font-semibold {
+            font-weight: 300 !important;
+        }
+        
+        .font-medium {
+            font-weight: 300 !important;
+        }
+        
+        button, .btn-pill {
+            font-weight: 300;
+            letter-spacing: 0.01em;
+        }
+        
+        /* Glassmorphism effect avec palette premium */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-dark {
+            background: rgba(13, 27, 42, 0.95);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Tab bar plus foncée */
+        .tab-bar {
+            background: rgba(13, 27, 42, 0.98);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .glass-brand {
+            background: rgba(27, 38, 59, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Background premium bleu marine avec animations */
+        .bg-blurred {
+            background: linear-gradient(135deg, #0D1B2A 0%, #1B263B 30%, #0D1B2A 60%, #1B263B 100%);
+            background-size: 400% 400%;
+            animation: gradient-shift 25s ease infinite;
+            position: relative;
+        }
+        
+        .bg-blurred::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(240, 196, 25, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(240, 196, 25, 0.03) 0%, transparent 60%);
+            animation: pulse-glow-bg 8s ease-in-out infinite;
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+        }
+        
+        .bg-blurred > * {
+            position: relative;
+            z-index: 1;
+        }
+        
+        @keyframes pulse-glow-bg {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        /* WhatsApp-style background pattern */
+        .bg-whatsapp {
+            background-color: #e5ddd5;
+            background-image: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(0, 0, 0, 0.03) 10px,
+                    rgba(0, 0, 0, 0.03) 20px
+                ),
+                repeating-linear-gradient(
+                    -45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(0, 0, 0, 0.03) 10px,
+                    rgba(0, 0, 0, 0.03) 20px
+                );
+            position: relative;
+        }
+        
+        .bg-whatsapp-dark {
+            background-color: #0b141a;
+            background-image: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(255, 255, 255, 0.02) 10px,
+                    rgba(255, 255, 255, 0.02) 20px
+                ),
+                repeating-linear-gradient(
+                    -45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(255, 255, 255, 0.02) 10px,
+                    rgba(255, 255, 255, 0.02) 20px
+                );
+            position: relative;
+        }
+        
+        .bg-whatsapp::before,
+        .bg-whatsapp-dark::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        .bg-whatsapp > *,
+        .bg-whatsapp-dark > * {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Pill button */
+        .btn-pill {
+            border-radius: 9999px;
+            padding: 0.5rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Hide scrollbar */
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Page transitions */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .page-transition {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Link transitions */
+        a {
+            transition: all 0.2s ease;
+        }
+        
+        /* Button transitions */
+        button {
+            transition: all 0.2s ease;
+        }
+        
+        /* Card hover transitions */
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Smooth transitions for all interactive elements */
+        * {
+            transition-property: color, background-color, border-color, transform, opacity;
+            transition-duration: 0.2s;
+            transition-timing-function: ease;
+        }
+        
+        /* Ajustements supplémentaires pour la légèreté */
+        input, textarea, select {
+            font-weight: 300;
+        }
+        
+        a {
+            font-weight: 300;
+        }
+        
+        /* Titres avec plus de légèreté */
+        .text-xl, .text-2xl, .text-3xl, .text-4xl {
+            font-weight: 300;
+            letter-spacing: -0.03em;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Enhanced glassmorphism with depth - Premium */
+        .glass-enhanced {
+            background: rgba(27, 38, 59, 0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(13, 27, 42, 0.5);
+        }
+        
+        /* Gradient text effect - Gold accent */
+        .gradient-text {
+            background: linear-gradient(135deg, #F0C419 0%, #F5D547 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Gold gradient text */
+        .gradient-gold {
+            background: linear-gradient(135deg, #F0C419 0%, #F5D547 50%, #D4A917 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Pulse animation for engagement - Gold accent */
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(240, 196, 25, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(240, 196, 25, 0.6);
+            }
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        /* Gold glow effect */
+        .glow-gold {
+            box-shadow: 0 0 20px rgba(240, 196, 25, 0.5);
+        }
+        
+        .glow-gold:hover {
+            box-shadow: 0 0 30px rgba(240, 196, 25, 0.7);
+        }
+        
+        /* Smooth hover lift effect */
+        .hover-lift {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Shimmer effect for loading states */
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+        
+        .shimmer {
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.1) 0%,
+                rgba(255, 255, 255, 0.2) 50%,
+                rgba(255, 255, 255, 0.1) 100%
+            );
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+        
+        /* Enhanced card with depth - Premium */
+        .card-depth {
+            background: rgba(27, 38, 59, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                0 8px 32px rgba(13, 27, 42, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Interactive button with ripple effect */
+        .btn-interactive {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-interactive::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-interactive:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        /* Smooth fade-in for content */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        /* Stagger animation for lists */
+        .stagger-item {
+            opacity: 0;
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        .stagger-item:nth-child(1) { animation-delay: 0.1s; }
+        .stagger-item:nth-child(2) { animation-delay: 0.2s; }
+        .stagger-item:nth-child(3) { animation-delay: 0.3s; }
+        .stagger-item:nth-child(4) { animation-delay: 0.4s; }
+        .stagger-item:nth-child(5) { animation-delay: 0.5s; }
+        .stagger-item:nth-child(6) { animation-delay: 0.6s; }
+        
+        /* Enhanced focus states for accessibility - Gold accent */
+        *:focus-visible {
+            outline: 2px solid rgba(240, 196, 25, 0.8);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        
+        /* Smooth color transitions */
+        .color-transition {
+            transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Modern gradient backgrounds - Premium Navy */
+        .bg-gradient-modern {
+            background: linear-gradient(135deg, #0D1B2A 0%, #1B263B 25%, #0D1B2A 50%, #1B263B 75%, #0D1B2A 100%);
+            background-size: 400% 400%;
+            animation: gradient-shift 20s ease infinite;
+        }
+        
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Gold gradient background */
+        .bg-gradient-gold {
+            background: linear-gradient(135deg, #F0C419 0%, #F5D547 50%, #D4A917 100%);
+        }
+        
+        /* Enhanced shadow system */
+        .shadow-soft {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .shadow-medium {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .shadow-strong {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .shadow-glow {
+            box-shadow: 0 0 20px rgba(240, 196, 25, 0.3);
+        }
+        
+        .shadow-gold {
+            box-shadow: 0 4px 20px rgba(240, 196, 25, 0.4);
+        }
+        
+        .shadow-gold-lg {
+            box-shadow: 0 10px 40px rgba(240, 196, 25, 0.5);
+        }
+        
+        /* Mobile optimizations for icons */
+        @media (max-width: 640px) {
+            .icon-mobile {
+                width: 1.25rem;
+                height: 1.25rem;
+            }
+            
+            .icon-mobile-lg {
+                width: 1.5rem;
+                height: 1.5rem;
+            }
+        }
+        
+        /* Touch-friendly tap targets */
+        @media (hover: none) and (pointer: coarse) {
+            button, a {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="h-full bg-brand-primary">
+    {% if messages %}
+        <div class="fixed top-4 right-4 z-50 space-y-2" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)">
+            {% for message in messages %}
+                <div class="glass px-6 py-3 rounded-full text-white shadow-lg">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <div class="page-transition">
+{% block content %}{% endblock %}
+</div>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

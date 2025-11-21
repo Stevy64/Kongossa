@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Créer une Story - Kongossa{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred pb-20">
+    <!-- Header -->
+    <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl">
+        <div class="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+            <a href="/feed/" class="text-white">← Annuler</a>
+            <h1 class="text-white text-xl font-poppins font-bold">Créer une Story</h1>
+            <div></div>
+        </div>
+    </div>
+    
+    <div class="max-w-2xl mx-auto px-4 py-6">
+        <div class="glass rounded-3xl p-6">
+            <form method="POST" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label class="block text-white text-sm font-medium mb-2">Image ou Vidéo</label>
+                    <input 
+                        type="file" 
+                        name="image" 
+                        accept="image/*"
+                        id="image-input"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
+                        onchange="handleFileSelect(event)"
+                    >
+                </div>
+                
+                <div>
+                    <label class="block text-white text-sm font-medium mb-2">Ou Vidéo</label>
+                    <input 
+                        type="file" 
+                        name="video" 
+                        accept="video/*"
+                        id="video-input"
+                        class="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
+                        onchange="handleFileSelect(event)"
+                    >
+                </div>
+                
+                <div id="preview" class="hidden">
+                    <img id="preview-image" src="" alt="Preview" class="w-full rounded-2xl">
+                    <video id="preview-video" src="" controls class="w-full rounded-2xl hidden"></video>
+                </div>
+                
+                <button 
+                    type="submit"
+                    class="w-full btn-pill bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold shadow-lg"
+                >
+                    Publier la Story
+                </button>
+            </form>
+        </div>
+        
+        <div class="mt-4 glass rounded-2xl p-4">
+            <p class="text-gray-300 text-sm text-center">
+                ⏰ Votre story sera visible pendant 24 heures
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        const preview = document.getElementById('preview');
+        const previewImage = document.getElementById('preview-image');
+        const previewVideo = document.getElementById('preview-video');
+        
+        if (file) {
+            preview.classList.remove('hidden');
+            
+            if (file.type.startsWith('image/')) {
+                previewImage.src = URL.createObjectURL(file);
+                previewImage.classList.remove('hidden');
+                previewVideo.classList.add('hidden');
+            } else if (file.type.startsWith('video/')) {
+                previewVideo.src = URL.createObjectURL(file);
+                previewVideo.classList.remove('hidden');
+                previewImage.classList.add('hidden');
+            }
+        }
+    }
+</script>
+{% endblock %}
+

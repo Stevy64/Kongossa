@@ -1,0 +1,429 @@
+{% extends 'base.html' %}
+{% load chat_filters %}
+
+{% block title %}Contacts - Kongossa{% endblock %}
+
+{% block extra_css %}
+<!-- Masquer les messages d'alerte dans la messagerie -->
+<style>
+    .fixed.top-4.right-4 {
+        display: none !important;
+    }
+    
+    /* Dégradé bleu/vert pour le fond de messagerie avec animations */
+    .chat-bg-gradient {
+        background: linear-gradient(135deg, #1B263B 0%, #0D1B2A 25%, #1B263B 50%, #0D1B2A 75%, #1B263B 100%);
+        background-size: 400% 400%;
+        animation: chat-gradient-shift 20s ease infinite;
+        min-height: 100vh;
+        position: relative;
+    }
+    
+    .chat-bg-gradient::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
+            radial-gradient(circle at 85% 75%, rgba(74, 222, 128, 0.1) 0%, transparent 45%),
+            radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+        animation: chat-pulse 10s ease-in-out infinite;
+        pointer-events: none;
+    }
+    
+    .chat-bg-gradient > * {
+        position: relative;
+        z-index: 1;
+    }
+    
+    @keyframes chat-gradient-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes chat-pulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+    }
+    
+    /* Glassmorphism pour messagerie */
+    .glass-card {
+        background: rgba(27, 38, 59, 0.7);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 20px rgba(13, 27, 42, 0.4);
+    }
+    
+    /* Tab bar plus foncée pour messagerie */
+    .glass-card.tab-bar {
+        background: rgba(13, 27, 42, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Sidebar minimisée - Plus foncée */
+    .sidebar-minimized {
+        width: 80px;
+        background: rgba(13, 27, 42, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar-expanded {
+        width: 320px;
+        background: rgba(13, 27, 42, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    @media (max-width: 768px) {
+        .sidebar-minimized {
+            width: 0;
+            transform: translateX(-100%);
+        }
+        .sidebar-expanded {
+            width: 100%;
+            max-width: 320px;
+            position: fixed;
+            z-index: 50;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ sidebarExpanded: window.innerWidth >= 768, filterType: 'all', searchQuery: '' }" class="h-screen chat-bg-gradient flex relative overflow-hidden">
+    <!-- Overlay pour mobile -->
+    <div 
+        x-show="sidebarExpanded && window.innerWidth < 768"
+        @click="sidebarExpanded = false"
+        x-transition:enter="transition-opacity ease-linear duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition-opacity ease-linear duration-300"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 bg-black/50 z-40 md:hidden"
+        style="display: none;"
+    ></div>
+    
+    <!-- Sidebar - Liste des conversations et groupes (même que /chat/) -->
+    <aside 
+        :class="sidebarExpanded ? 'sidebar-expanded' : 'sidebar-minimized'"
+        class="h-screen bg-white/10 backdrop-blur-xl border-r border-white/20 transition-all duration-300 z-50 md:z-auto flex flex-col overflow-hidden"
+    >
+        <!-- Header Sidebar -->
+        <div class="p-4 border-b border-white/20 flex-shrink-0">
+            <div class="flex items-center justify-between mb-4" x-show="sidebarExpanded">
+                <h2 class="text-white text-xl font-bold">Messages</h2>
+                <button 
+                    @click="sidebarExpanded = false"
+                    class="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                    title="Réduire"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Bouton pour développer (quand minimisée) -->
+            <div x-show="!sidebarExpanded" class="flex justify-center">
+                <button 
+                    @click="sidebarExpanded = true"
+                    class="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                    title="Développer"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Recherche (seulement quand développée) -->
+            <div class="relative" x-show="sidebarExpanded" x-transition>
+                <input 
+                    type="text" 
+                    placeholder="Rechercher..."
+                    class="w-full px-4 py-2 pl-10 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
+                >
+                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            
+            <!-- Filtres (seulement quand développée) -->
+            <div class="mt-3 flex space-x-2" x-show="sidebarExpanded" x-transition>
+                <button 
+                    @click="filterType = 'all'"
+                    :class="filterType === 'all' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                    Tous
+                </button>
+                <button 
+                    @click="filterType = 'conversations'"
+                    :class="filterType === 'conversations' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                    Chats
+                </button>
+                <button 
+                    @click="filterType = 'groups'"
+                    :class="filterType === 'groups' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                    Groupes
+                </button>
+            </div>
+        </div>
+        
+        <!-- Liste des conversations et groupes -->
+        <div class="flex-1 overflow-y-auto">
+            {% if all_items %}
+                <div class="p-2 space-y-1">
+                    {% for item in all_items %}
+                        {% if item.type == 'conversation' and item.other_user %}
+                            <div x-show="filterType === 'all' || filterType === 'conversations'">
+                            <!-- Conversation privée -->
+                            <a 
+                                href="{% url 'chat:detail' item.conversation.id %}" 
+                                class="block glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200 group relative"
+                                :title="sidebarExpanded ? '' : '{{ item.other_user.username }}'"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <!-- Avatar avec statut -->
+                                    <div class="relative flex-shrink-0">
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
+                                            {% if item.other_user.avatar %}
+                                                <img src="{{ item.other_user.avatar.url }}" alt="{{ item.other_user.username }}" class="w-full h-full object-cover">
+                                            {% else %}
+                                                <span class="text-white text-lg font-bold">{{ item.other_user.username|first|upper }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <!-- Pastille de statut -->
+                                        <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 border-2 border-white/20 rounded-full"></span>
+                                    </div>
+                                    
+                                    <!-- Informations (cachées quand minimisée) -->
+                                    <div class="flex-1 min-w-0" x-show="sidebarExpanded" x-transition>
+                                        <div class="flex items-center justify-between mb-1">
+                                            <p class="text-white font-semibold text-sm truncate">{{ item.other_user.username }}</p>
+                                            {% if item.last_message %}
+                                                <span class="text-white/60 text-xs ml-2 flex-shrink-0">
+                                                    {{ item.last_message.created_at|format_chat_time }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            {% if item.last_message %}
+                                                <p class="text-white/80 text-sm truncate">{{ item.last_message.content|truncatewords:8 }}</p>
+                                            {% else %}
+                                                <p class="text-white/60 text-sm italic">Aucun message</p>
+                                            {% endif %}
+                                            {% if item.unread_count > 0 %}
+                                                <span class="ml-2 flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                    <span class="text-white text-xs font-bold">{{ item.unread_count }}</span>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            </div>
+                        {% elif item.type == 'group' %}
+                            <div x-show="filterType === 'all' || filterType === 'groups'">
+                            <!-- Groupe -->
+                            <a 
+                                href="{% url 'forum:group_detail' item.group.id %}" 
+                                class="block glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200 group relative"
+                                :title="sidebarExpanded ? '' : '{{ item.group.name }}'"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <!-- Avatar du groupe -->
+                                    <div class="relative flex-shrink-0">
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
+                                            {% if item.group.image %}
+                                                <img src="{{ item.group.image.url }}" alt="{{ item.group.name }}" class="w-full h-full object-cover">
+                                            {% else %}
+                                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                            {% endif %}
+        </div>
+    </div>
+    
+                                    <!-- Informations (cachées quand minimisée) -->
+                                    <div class="flex-1 min-w-0" x-show="sidebarExpanded" x-transition>
+                                        <div class="flex items-center justify-between mb-1">
+                                            <p class="text-white font-semibold text-sm truncate">{{ item.group.name }}</p>
+                                            {% if item.last_message %}
+                                                <span class="text-white/60 text-xs ml-2 flex-shrink-0">
+                                                    {{ item.last_message.created_at|format_chat_time }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            {% if item.last_message %}
+                                                <p class="text-white/80 text-sm truncate">
+                                                    <span class="font-medium">{{ item.last_message.sender.username }}:</span> {{ item.last_message.content|truncatewords:6 }}
+                                                </p>
+                                            {% else %}
+                                                <p class="text-white/60 text-sm italic">Aucun message</p>
+                                            {% endif %}
+                                            {% if item.unread_count > 0 %}
+                                                <span class="ml-2 flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                    <span class="text-white text-xs font-bold">{{ item.unread_count }}</span>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="p-8 text-center" x-show="sidebarExpanded" x-transition>
+                    <svg class="w-16 h-16 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+                    </svg>
+                    <p class="text-white/80 font-semibold mb-2">Aucune conversation</p>
+                    <p class="text-white/60 text-sm mb-4">Commencez à discuter avec vos contacts</p>
+                    <a href="{% url 'chat:contacts' %}" class="inline-flex items-center space-x-2 px-6 py-3 rounded-full bg-white/20 hover:bg-white/30 text-white font-semibold transition-all duration-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Nouvelle conversation</span>
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Bouton Nouveau (en bas de la sidebar) -->
+        <div class="p-4 border-t border-white/20 flex-shrink-0" x-show="sidebarExpanded" x-transition>
+            <a 
+                href="{% url 'chat:contacts' %}" 
+                class="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold transition-all duration-200"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Nouveau message</span>
+            </a>
+        </div>
+        
+        <!-- Bouton Nouveau (minimisé) -->
+        <div class="p-4 border-t border-white/20 flex-shrink-0 flex justify-center" x-show="!sidebarExpanded" x-transition>
+            <a 
+                href="{% url 'chat:contacts' %}" 
+                class="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 flex items-center justify-center"
+                title="Nouveau message"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+            </a>
+        </div>
+    </aside>
+    
+    <!-- Zone principale - Liste des contacts -->
+    <main class="flex-1 flex flex-col">
+        <!-- Header -->
+        <header class="glass-card tab-bar border-b border-white/20 p-4">
+            <div class="flex items-center space-x-3">
+                <h1 class="text-white text-xl font-bold">Nouvelle conversation</h1>
+            </div>
+            
+            <!-- Recherche -->
+            <div class="relative mt-4">
+                    <input 
+                        type="text" 
+                    x-model="searchQuery"
+                        placeholder="Rechercher un contact..."
+                    class="w-full px-4 py-2 pl-10 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
+                    >
+                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                </div>
+        </header>
+        
+        <!-- Liste des contacts -->
+        <div class="flex-1 overflow-y-auto p-4">
+            {% if contacts %}
+                <div class="space-y-2">
+                    {% for contact_data in contacts %}
+                        <div 
+                            x-show="searchQuery === '' || '{{ contact_data.user.username|lower }}'.includes(searchQuery.toLowerCase()) || {% if contact_data.user.bio %}'{{ contact_data.user.bio|lower }}'.includes(searchQuery.toLowerCase()){% else %}false{% endif %}"
+                            class="glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200"
+                        >
+                            <a 
+                                href="{% if contact_data.has_conversation %}{% url 'chat:detail' contact_data.conversation_id %}{% else %}{% url 'chat:start_conversation' contact_data.user.id %}{% endif %}" 
+                                class="flex items-center space-x-3"
+                            >
+                                <!-- Avatar -->
+                                <div class="relative flex-shrink-0">
+                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
+                                    {% if contact_data.user.avatar %}
+                                        <img src="{{ contact_data.user.avatar.url }}" alt="{{ contact_data.user.username }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                        <span class="text-white text-lg font-bold">{{ contact_data.user.username|first|upper }}</span>
+                                    {% endif %}
+                                </div>
+                                    <!-- Pastille de statut -->
+                                    <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 border-2 border-white/20 rounded-full"></span>
+                                </div>
+                                
+                                <!-- Informations -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-white font-semibold text-sm truncate">{{ contact_data.user.username }}</p>
+                                        {% if contact_data.has_conversation %}
+                                            <span class="text-white/60 text-xs ml-2 flex-shrink-0">Conversation existante</span>
+                                    {% endif %}
+                                </div>
+                                    {% if contact_data.user.bio %}
+                                        <p class="text-white/70 text-xs truncate mt-1">{{ contact_data.user.bio }}</p>
+                                {% endif %}
+                            </div>
+                                
+                                <!-- Icône flèche -->
+                                <svg class="w-5 h-5 text-white/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                        </a>
+                        </div>
+                    {% endfor %}
+            </div>
+        {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-16 h-16 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                    <p class="text-white/80 font-semibold mb-2">Aucun contact disponible</p>
+                    <p class="text-white/60 text-sm">Les autres utilisateurs apparaîtront ici</p>
+            </div>
+        {% endif %}
+    </div>
+    </main>
+</div>
+{% endblock %}
+

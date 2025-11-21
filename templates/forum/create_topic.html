@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}Créer un nouveau sujet - Kongossa{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred pb-20">
+    <!-- Header -->
+    <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl border-b border-white/20">
+        <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
+            <a href="{% url 'forum:topics_list' %}" class="text-white/80 hover:text-white transition-all hover:scale-105 flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span>Retour</span>
+            </a>
+            <h1 class="text-white text-2xl font-poppins font-bold gradient-text">Créer un nouveau sujet</h1>
+            <div class="w-20"></div>
+        </div>
+    </div>
+    
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <div class="glass-enhanced rounded-3xl p-8 border border-white/20 shadow-2xl fade-in-up">
+            <form method="POST" action="{% url 'forum:create_topic' %}" class="space-y-6">
+                {% csrf_token %}
+                
+                <!-- Nom du sujet -->
+                <div>
+                    <label for="name" class="block text-white font-semibold mb-2">
+                        Nom du sujet <span class="text-red-400">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="name"
+                        name="name" 
+                        required
+                        maxlength="100"
+                        placeholder="Ex: Technologie, Sport, Culture..."
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                    >
+                    <p class="text-gray-400 text-sm mt-1">Choisissez un nom clair et descriptif pour votre sujet</p>
+                </div>
+                
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-white font-semibold mb-2">
+                        Description
+                    </label>
+                    <textarea 
+                        id="description"
+                        name="description" 
+                        rows="4"
+                        maxlength="500"
+                        placeholder="Décrivez brièvement le sujet de discussion..."
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none backdrop-blur-sm transition-all"
+                    ></textarea>
+                    <p class="text-gray-400 text-sm mt-1">Une description aide les utilisateurs à comprendre le sujet</p>
+                </div>
+                
+                <!-- Icône et Couleur -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Icône -->
+                    <div>
+                        <label for="icon" class="block text-white font-semibold mb-2">
+                            Icône (emoji)
+                        </label>
+                        <input 
+                            type="text" 
+                            id="icon"
+                            name="icon" 
+                            maxlength="2"
+                            value="💬"
+                            placeholder="💬"
+                            class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all text-center text-2xl"
+                        >
+                        <p class="text-gray-400 text-sm mt-1">Choisissez un emoji représentatif</p>
+                    </div>
+                    
+                    <!-- Couleur -->
+                    <div>
+                        <label for="color" class="block text-white font-semibold mb-2">
+                            Couleur
+                        </label>
+                        <div class="flex items-center space-x-3">
+                            <input 
+                                type="color" 
+                                id="color"
+                                name="color" 
+                                value="#9333ea"
+                                class="w-16 h-16 rounded-xl bg-white/10 border border-white/20 cursor-pointer"
+                            >
+                            <input 
+                                type="text" 
+                                value="#9333ea"
+                                id="color-text"
+                                class="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                                placeholder="#9333ea"
+                            >
+                        </div>
+                        <p class="text-gray-400 text-sm mt-1">Couleur du thème</p>
+                    </div>
+                </div>
+                
+                <!-- Preview -->
+                <div class="mt-6 p-6 rounded-2xl bg-white/5 border border-white/10">
+                    <p class="text-gray-400 text-sm mb-3">Aperçu :</p>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg" id="preview-icon">
+                            <span class="text-3xl" id="preview-icon-text">💬</span>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-bold text-lg" id="preview-name">Nom du sujet</h3>
+                            <p class="text-gray-300 text-sm" id="preview-description">Description du sujet...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Boutons -->
+                <div class="flex items-center justify-end space-x-4 pt-4">
+                    <a href="{% url 'forum:topics_list' %}" class="px-6 py-3 rounded-xl glass text-white/80 hover:text-white hover:bg-white/20 transition-all">
+                        Annuler
+                    </a>
+                    <button 
+                        type="submit"
+                        class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white font-semibold hover:shadow-glow hover:scale-105 transition-all btn-interactive"
+                    >
+                        Créer le sujet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Floating Chat Button (FAB) -->
+    <a href="{% url 'chat:list' %}" class="fixed bottom-6 right-6 z-50 group">
+        <div class="relative">
+            <div class="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse"></div>
+            <div class="relative w-14 h-14 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 rounded-full flex items-center justify-center shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-110 hover:rotate-12">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+                </svg>
+            </div>
+        </div>
+    </a>
+</div>
+
+<script>
+    // Mise à jour de l'aperçu en temps réel
+    const nameInput = document.getElementById('name');
+    const descriptionInput = document.getElementById('description');
+    const iconInput = document.getElementById('icon');
+    const colorInput = document.getElementById('color');
+    const colorTextInput = document.getElementById('color-text');
+    
+    const previewName = document.getElementById('preview-name');
+    const previewDescription = document.getElementById('preview-description');
+    const previewIcon = document.getElementById('preview-icon-text');
+    const previewIconContainer = document.getElementById('preview-icon');
+    
+    nameInput.addEventListener('input', function() {
+        previewName.textContent = this.value || 'Nom du sujet';
+    });
+    
+    descriptionInput.addEventListener('input', function() {
+        previewDescription.textContent = this.value || 'Description du sujet...';
+    });
+    
+    iconInput.addEventListener('input', function() {
+        previewIcon.textContent = this.value || '💬';
+    });
+    
+    colorInput.addEventListener('input', function() {
+        colorTextInput.value = this.value;
+        previewIconContainer.style.background = `linear-gradient(135deg, ${this.value} 0%, ${adjustColor(this.value, 20)} 50%, ${adjustColor(this.value, 40)} 100%)`;
+    });
+    
+    colorTextInput.addEventListener('input', function() {
+        if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+            colorInput.value = this.value;
+            previewIconContainer.style.background = `linear-gradient(135deg, ${this.value} 0%, ${adjustColor(this.value, 20)} 50%, ${adjustColor(this.value, 40)} 100%)`;
+        }
+    });
+    
+    function adjustColor(color, percent) {
+        const num = parseInt(color.replace("#",""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+            (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+            (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+</script>
+{% endblock %}
+

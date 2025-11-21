@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Kongossa - Le forum gabonais moderne{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-4 bg-blurred">
+    <div class="w-full max-w-md text-center">
+        <div class="glass rounded-3xl p-12 shadow-2xl">
+            <h1 class="text-5xl font-poppins font-bold text-white mb-4">Kongossa</h1>
+            <p class="text-gray-300 text-lg mb-8">Le forum gabonais moderne pour discuter, partager et connecter.</p>
+            
+            <div class="space-y-4">
+                <a 
+                    href="{% url 'users:signup' %}"
+                    class="block w-full btn-pill bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold shadow-lg"
+                >
+                    Créer un compte
+                </a>
+                
+                <a 
+                    href="{% url 'users:login' %}"
+                    class="block w-full btn-pill bg-white/20 text-white font-semibold hover:bg-white/30 transition"
+                >
+                    Se connecter
+                </a>
+            </div>
+        </div>
+        
+        <div class="mt-8 glass rounded-2xl p-6">
+            <h2 class="text-white font-semibold mb-4">Fonctionnalités</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm text-gray-300">
+                <div>📱 Forum</div>
+                <div>💬 Chat temps réel</div>
+                <div>📸 Stories</div>
+                <div>👤 Profils</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

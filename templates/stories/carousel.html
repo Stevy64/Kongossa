@@ -1,0 +1,38 @@
+{% load static %}
+
+<div class="mb-6">
+    <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+        <!-- Add Story Button -->
+        <div class="flex-shrink-0">
+            <a href="{% url 'stories:create_form' %}" class="block">
+                <div class="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 p-0.5">
+                    <div class="w-full h-full rounded-full bg-gray-900 flex flex-col items-center justify-center">
+                        <span class="text-white text-2xl mb-1">+</span>
+                        <span class="text-white text-xs">Story</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <!-- User Stories -->
+        {% for user_data in users_with_stories %}
+            {% if user_data.stories %}
+                <div class="flex-shrink-0">
+                    <a href="{% url 'stories:viewer' user_data.stories.0.id %}" class="block">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 p-0.5">
+                            <div class="w-full h-full rounded-full bg-gray-900 flex items-center justify-center overflow-hidden">
+                                {% if user_data.user.avatar %}
+                                    <img src="{{ user_data.user.avatar.url }}" alt="{{ user_data.user.username }}" class="w-full h-full object-cover">
+                                {% else %}
+                                    <span class="text-white text-sm font-bold">{{ user_data.user.username|first|upper }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-white text-xs text-center mt-1 truncate w-20">{{ user_data.user.username }}</p>
+                    </a>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+

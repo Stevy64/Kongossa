@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Thèmes de discussion - Kongossa{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-blurred pb-20">
+    <!-- Header - Tab bar plus foncée -->
+    <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl border-b border-white/20">
+        <div class="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
+            <a href="/feed/" class="text-white/80 hover:text-white transition-all hover:scale-105 flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span>Retour</span>
+            </a>
+            <h1 class="text-white text-2xl font-poppins font-bold gradient-text">Forums de discussion</h1>
+            <a href="{% url 'forum:create_topic' %}" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-gold text-brand-primary hover:opacity-90 transition-all duration-300 hover:scale-105 shadow-gold font-bold">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span class="text-sm font-semibold hidden sm:inline">Nouveau sujet</span>
+            </a>
+        </div>
+    </div>
+    
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        {% if topics %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for topic in topics %}
+                    <a href="{% url 'forum:topic_detail' topic.slug %}" class="group block stagger-item">
+                        <div class="glass-enhanced rounded-3xl p-6 hover-lift h-full border border-white/20">
+                            <div class="flex items-start space-x-4 mb-4">
+                                <div class="w-16 h-16 rounded-2xl bg-gradient-gold flex items-center justify-center shadow-gold transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                                    {% if topic.icon|length > 2 %}
+                                        <span class="text-3xl">{{ topic.icon }}</span>
+                                    {% else %}
+                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                        </svg>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="text-white font-poppins font-bold text-lg mb-1 group-hover:text-gold transition-colors line-clamp-1">
+                                        {{ topic.name }}
+                                    </h3>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-gold text-sm font-medium">{{ topic.posts_count }}</span>
+                                        <span class="text-gray-300 text-sm">discussion{{ topic.posts_count|pluralize }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if topic.description %}
+                                <p class="text-gray-300 text-sm line-clamp-2 leading-relaxed">{{ topic.description }}</p>
+                            {% endif %}
+                            <div class="mt-4 pt-4 border-t border-white/10 flex items-center text-gold text-sm font-medium group-hover:text-gold-light transition-colors">
+                                <span>Explorer</span>
+                                <svg class="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="glass-enhanced rounded-3xl p-12 text-center border border-white/20">
+                <div class="flex justify-center mb-4">
+                    <svg class="w-16 h-16 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m4.5 0a12.05 12.05 0 01-3.75-1.5m-1.5 0a12.05 12.05 0 00-3.75 1.5m1.5 0a12.06 12.06 0 014.5 0M9 9.75a3 3 0 11-6 0 3 3 0 016 0zm12 0a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <p class="text-white text-lg">Aucun thème disponible pour le moment</p>
+                <p class="text-gray-300 text-sm mt-2">Les thèmes de discussion seront bientôt disponibles</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Floating Chat Button (FAB) -->
+    <a href="{% url 'chat:list' %}" class="fixed bottom-6 right-6 z-50 group">
+        <div class="relative">
+            <div class="absolute inset-0 bg-gradient-gold rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse"></div>
+            <div class="relative w-14 h-14 bg-gradient-gold rounded-full flex items-center justify-center shadow-gold-lg hover:shadow-gold transition-all duration-300 hover:scale-110 hover:rotate-12">
+                <svg class="w-7 h-7 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+                </svg>
+            </div>
+        </div>
+    </a>
+</div>
+{% endblock %}
+
