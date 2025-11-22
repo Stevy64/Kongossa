@@ -1,6 +1,6 @@
 # Kongossa
 
-Le forum gabonais moderne pour discuter, partager et connecter.
+Votre forum gabonais pour discuter, partager et connecter.
 
 ## 🚀 Fonctionnalités
 
@@ -153,5 +153,5 @@ Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou un
 
 ---
 
-**Kongossa** - Le forum gabonais moderne 🌍
+**Kongossa** - Votre forum gabonais 🌍
 
