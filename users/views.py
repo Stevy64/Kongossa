@@ -279,7 +279,11 @@ def edit_profile(request):
             # Sauvegarder les modifications
             user.save()
             messages.success(request, 'Profil mis à jour avec succès')
-            return redirect('users:profile', username=user.username)
+            # S'assurer que le username existe avant de rediriger
+            if user.username:
+                return redirect('users:profile', username=user.username)
+            else:
+                return redirect('forum:feed')
             
         except Exception as e:
             messages.error(request, f'Erreur lors de la mise à jour du profil: {str(e)}')

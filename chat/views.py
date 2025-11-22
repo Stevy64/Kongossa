@@ -171,31 +171,46 @@ def send_message(request, conversation_id):
     
     content = request.POST.get('content', '').strip()
     image = request.FILES.get('image')
+    video = request.FILES.get('video')
+    audio = request.FILES.get('audio')
     file = request.FILES.get('file')
     file_name = request.POST.get('file_name', '')
     
-    if not content and not image and not file:
+    if not content and not image and not video and not audio and not file:
         return JsonResponse({'error': 'Le message ne peut pas être vide'}, status=400)
     
-    # Détecter si le fichier est une image
+    # Détecter si le fichier est une image, vidéo ou audio
     if file:
         if not file_name:
             file_name = file.name
         
-        # Vérifier si c'est une image par l'extension
+        # Vérifier le type de fichier
         import mimetypes
         file_type, _ = mimetypes.guess_type(file_name)
-        if file_type and file_type.startswith('image/'):
-            # C'est une image, l'enregistrer dans le champ image
-            image = file
-            file = None
-            file_name = None
+        if file_type:
+            if file_type.startswith('image/'):
+                # C'est une image, l'enregistrer dans le champ image
+                image = file
+                file = None
+                file_name = None
+            elif file_type.startswith('video/'):
+                # C'est une vidéo, l'enregistrer dans le champ video
+                video = file
+                file = None
+                file_name = None
+            elif file_type.startswith('audio/'):
+                # C'est un audio, l'enregistrer dans le champ audio
+                audio = file
+                file = None
+                file_name = None
     
     message = Message.objects.create(
         conversation=conversation,
         sender=request.user,
         content=content,
         image=image,
+        video=video,
+        audio=audio,
         file=file,
         file_name=file_name
     )
@@ -210,8 +225,11 @@ def send_message(request, conversation_id):
             'content': message.content,
             'sender': message.sender.username,
             'sender_id': message.sender.id,
+            'sender_avatar': message.sender.avatar.url if message.sender.avatar else None,
             'created_at': message.created_at.isoformat(),
             'image': message.image.url if message.image else None,
+            'video': message.video.url if message.video else None,
+            'audio': message.audio.url if message.audio else None,
             'file': message.file.url if message.file else None,
             'file_name': message.file_name,
         }

@@ -17,6 +17,7 @@ class Topic(models.Model):
     icon = models.CharField(max_length=50, default="💬", verbose_name="Icône")
     color = models.CharField(max_length=7, default="#9333ea", verbose_name="Couleur")
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_topics', verbose_name="Créateur")
+    subscribers = models.ManyToManyField(User, related_name='subscribed_topics', blank=True, verbose_name="Abonnés")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True, verbose_name="Actif")
@@ -35,6 +36,12 @@ class Topic(models.Model):
     @property
     def post_count(self):
         return self.posts.count()
+    
+    def is_subscribed(self, user):
+        """Vérifier si un utilisateur est abonné au topic"""
+        if not user or not user.is_authenticated:
+            return False
+        return self.subscribers.filter(id=user.id).exists()
 
 
 class Post(models.Model):
@@ -43,6 +50,8 @@ class Post(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True, blank=True, related_name='posts', verbose_name="Thème")
     content = models.TextField()
     image = models.ImageField(upload_to='posts/', blank=True, null=True)
+    video = models.FileField(upload_to='posts/videos/', blank=True, null=True, verbose_name="Vidéo")
+    audio = models.FileField(upload_to='posts/audios/', blank=True, null=True, verbose_name="Audio")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -102,8 +111,10 @@ class Group(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='groups', verbose_name="Thème")
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups', verbose_name="Créateur")
     members = models.ManyToManyField(User, related_name='forum_groups', verbose_name="Membres")
+    subscribers = models.ManyToManyField(User, related_name='subscribed_groups', blank=True, verbose_name="Abonnés")
     image = models.ImageField(upload_to='groups/', blank=True, null=True, verbose_name="Image")
     is_public = models.BooleanField(default=True, verbose_name="Public")
+    requires_approval = models.BooleanField(default=False, verbose_name="Nécessite une approbation")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -127,6 +138,25 @@ class Group(models.Model):
         if not user.is_authenticated:
             return False
         return self.members.filter(id=user.id).exists()
+    
+    def is_subscribed(self, user):
+        """Vérifier si un utilisateur est abonné au groupe"""
+        if not user.is_authenticated:
+            return False
+        return self.subscribers.filter(id=user.id).exists()
+    
+    def can_access(self, user):
+        """Vérifier si un utilisateur peut accéder au groupe"""
+        if not user.is_authenticated:
+            return False
+        # Le créateur a toujours accès
+        if self.creator == user:
+            return True
+        # Si le groupe nécessite une approbation, vérifier si l'utilisateur est membre
+        if self.requires_approval:
+            return self.is_member(user)
+        # Sinon, vérifier si l'utilisateur est abonné
+        return self.is_subscribed(user)
 
 
 class GroupRequest(models.Model):
@@ -163,6 +193,8 @@ class GroupMessage(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='group_messages')
     content = models.TextField(blank=True)
     image = models.ImageField(upload_to='group_messages/', blank=True, null=True)
+    video = models.FileField(upload_to='group_messages/videos/', blank=True, null=True, verbose_name="Vidéo")
+    audio = models.FileField(upload_to='group_messages/audios/', blank=True, null=True, verbose_name="Audio")
     file = models.FileField(upload_to='group_messages/files/', blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

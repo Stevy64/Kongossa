@@ -1,0 +1,45 @@
+# ============================================================================
+# ATTRIBUTS GIT - KONGOSSA
+# ============================================================================
+# Configuration des attributs de fichiers pour Git
+
+# Fichiers texte avec fin de ligne automatique
+* text=auto
+
+# Fichiers Python
+*.py text eol=lf
+
+# Fichiers de configuration
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+
+# Fichiers de documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Fichiers shell
+*.sh text eol=lf
+
+# Fichiers HTML/Django templates
+*.html text eol=lf
+*.htm text eol=lf
+
+# Fichiers CSS
+*.css text eol=lf
+
+# Fichiers JavaScript
+*.js text eol=lf
+
+# Fichiers binaires (ne pas modifier)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+
+

@@ -34,7 +34,7 @@
             </h2>
             <div class="space-y-3">
                 {% for notification in unread_notifications %}
-                <div class="glass-enhanced rounded-2xl p-4 border-l-4 border-purple-500 hover:bg-white/5 transition-all fade-in-up">
+                <div class="notification-item glass-enhanced rounded-2xl p-4 border-l-4 border-purple-500 hover:bg-white/5 transition-all fade-in-up" data-notification-id="{{ notification.id }}" style="touch-action: pan-y;">
                     <div class="flex items-start space-x-3">
                         <div class="flex-shrink-0">
                             {% if notification.notification_type == 'message' %}
@@ -112,7 +112,7 @@
             </h2>
             <div class="space-y-3">
                 {% for notification in read_notifications %}
-                <div class="glass rounded-2xl p-4 opacity-60 hover:opacity-100 hover:bg-white/5 transition-all">
+                <div class="notification-item glass rounded-2xl p-4 opacity-60 hover:opacity-100 hover:bg-white/5 transition-all" data-notification-id="{{ notification.id }}" style="touch-action: pan-y;">
                     <div class="flex items-start space-x-3">
                         <div class="flex-shrink-0">
                             <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
@@ -150,5 +150,153 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+    // Swipe-to-delete pour les notifications
+    document.addEventListener('DOMContentLoaded', function() {
+        const notificationItems = document.querySelectorAll('.notification-item');
+        
+        notificationItems.forEach(item => {
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            let startTime = 0;
+            
+            item.addEventListener('touchstart', function(e) {
+                startX = e.touches[0].clientX;
+                startTime = Date.now();
+                isDragging = true;
+            }, { passive: true });
+            
+            item.addEventListener('touchmove', function(e) {
+                if (!isDragging) return;
+                currentX = e.touches[0].clientX;
+                const diffX = currentX - startX;
+                
+                // Ne permettre le swipe que vers la droite (diffX > 0)
+                if (diffX > 0 && diffX < 200) {
+                    item.style.transform = `translateX(${diffX}px)`;
+                    item.style.opacity = `${1 - (diffX / 200)}`;
+                }
+            }, { passive: true });
+            
+            item.addEventListener('touchend', function(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                const diffX = currentX - startX;
+                const diffTime = Date.now() - startTime;
+                const notificationId = item.dataset.notificationId;
+                
+                // Si swipe vers la droite de plus de 100px ou vitesse rapide
+                if (diffX > 100 || (diffX > 50 && diffTime < 300)) {
+                    // Animation de suppression
+                    item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                    item.style.transform = 'translateX(100%)';
+                    item.style.opacity = '0';
+                    
+                    // Supprimer la notification après l'animation
+                    setTimeout(() => {
+                        deleteNotification(notificationId, item);
+                    }, 300);
+                } else {
+                    // Retour à la position initiale
+                    item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                    item.style.transform = 'translateX(0)';
+                    item.style.opacity = '';
+                }
+            }, { passive: true });
+            
+            // Support pour desktop avec mouse events
+            let mouseStartX = 0;
+            let mouseCurrentX = 0;
+            let isMouseDragging = false;
+            
+            item.addEventListener('mousedown', function(e) {
+                mouseStartX = e.clientX;
+                isMouseDragging = true;
+                item.style.cursor = 'grabbing';
+            });
+            
+            item.addEventListener('mousemove', function(e) {
+                if (!isMouseDragging) return;
+                mouseCurrentX = e.clientX;
+                const diffX = mouseCurrentX - mouseStartX;
+                
+                if (diffX > 0 && diffX < 200) {
+                    item.style.transform = `translateX(${diffX}px)`;
+                    item.style.opacity = `${1 - (diffX / 200)}`;
+                }
+            });
+            
+            item.addEventListener('mouseup', function(e) {
+                if (!isMouseDragging) return;
+                isMouseDragging = false;
+                item.style.cursor = '';
+                
+                const diffX = mouseCurrentX - mouseStartX;
+                const notificationId = item.dataset.notificationId;
+                
+                if (diffX > 100) {
+                    item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                    item.style.transform = 'translateX(100%)';
+                    item.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        deleteNotification(notificationId, item);
+                    }, 300);
+                } else {
+                    item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                    item.style.transform = 'translateX(0)';
+                    item.style.opacity = '';
+                }
+            });
+            
+            item.addEventListener('mouseleave', function(e) {
+                if (isMouseDragging) {
+                    isMouseDragging = false;
+                    item.style.cursor = '';
+                    item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                    item.style.transform = 'translateX(0)';
+                    item.style.opacity = '';
+                }
+            });
+        });
+    });
+    
+    function deleteNotification(notificationId, element) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            return;
+        }
+        
+        fetch(`{% url 'notifications:delete' 0 %}`.replace('0', notificationId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken.value,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                element.remove();
+            } else {
+                // En cas d'erreur, remettre l'élément
+                element.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                element.style.transform = 'translateX(0)';
+                element.style.opacity = '';
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lors de la suppression:', error);
+            // Remettre l'élément en cas d'erreur
+            element.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+            element.style.transform = 'translateX(0)';
+            element.style.opacity = '';
+        });
+    }
+</script>
 {% endblock %}
 

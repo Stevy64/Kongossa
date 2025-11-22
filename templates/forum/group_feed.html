@@ -2,17 +2,17 @@
 {% load static %}
 {% load custom_filters %}
 
-{% block title %}{{ topic.name }} - Kongossa{% endblock %}
+{% block title %}{{ group.name }} - Kongossa{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Background personnalisé avec la couleur du topic - Assombri avec overlay */
+    /* Background personnalisé avec la couleur du groupe - Assombri avec overlay */
     .topic-background {
         background: linear-gradient(180deg, 
-            {{ topic.color }} 0%, 
-            {{ topic.color }}dd 30%, 
-            {{ topic.color }}aa 60%,
-            {{ topic.color }}88 100%
+            {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %} 0%, 
+            {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %}dd 30%, 
+            {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %}aa 60%,
+            {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %}88 100%
         );
         min-height: 100vh;
         position: relative;
@@ -171,9 +171,9 @@
         display: none;
     }
     
-    /* Bannière du topic */
+    /* Bannière du groupe */
     .topic-banner {
-        background: linear-gradient(135deg, {{ topic.color }} 0%, {{ topic.color }}cc 100%);
+        background: linear-gradient(135deg, {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %} 0%, {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %}cc 100%);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
     }
@@ -653,16 +653,16 @@
                 </svg>
                 <span class="hidden sm:inline">Retour</span>
             </a>
-            <!-- Nom du topic dans la tab bar -->
+            <!-- Nom du groupe dans la tab bar -->
             <div class="flex items-center space-x-2 flex-1 justify-center mx-4">
-                {% if topic.icon|length > 2 %}
-                    <span class="text-xl">{{ topic.icon }}</span>
+                {% if group.image %}
+                    <img src="{{ group.image.url }}" alt="{{ group.name }}" class="w-6 h-6 rounded-lg object-cover">
                 {% else %}
                     <svg class="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                 {% endif %}
-                <h1 class="text-white text-lg font-calligraphy truncate max-w-xs">{{ topic.name }}</h1>
+                <h1 class="text-white text-lg font-calligraphy truncate max-w-xs">{{ group.name }}</h1>
             </div>
             <div class="flex items-center space-x-3">
                 <!-- Notifications Button -->
@@ -693,28 +693,28 @@
         </div>
     </div>
     
-    <!-- Bannière du Topic -->
+    <!-- Bannière du Groupe -->
     <div class="topic-banner border-b border-white/20 shadow-lg">
         <div class="max-w-2xl mx-auto px-4 py-6">
             <div class="flex items-center space-x-4">
-                <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                    {% if topic.icon|length > 2 %}
-                        <span class="text-4xl">{{ topic.icon }}</span>
+                <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg overflow-hidden">
+                    {% if group.image %}
+                        <img src="{{ group.image.url }}" alt="{{ group.name }}" class="w-full h-full object-cover">
                     {% else %}
                         <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     {% endif %}
                 </div>
                 <div class="flex-1">
-                    <h1 class="text-white text-2xl md:text-3xl font-calligraphy mb-1">{{ topic.name }}</h1>
-                    {% if topic.description %}
-                        <p class="text-white/90 text-sm leading-relaxed">{{ topic.description }}</p>
+                    <h1 class="text-white text-2xl md:text-3xl font-calligraphy mb-1">{{ group.name }}</h1>
+                    {% if group.description %}
+                        <p class="text-white/90 text-sm leading-relaxed">{{ group.description }}</p>
                     {% endif %}
                     <p class="text-white/70 text-xs mt-2">{{ page_obj.paginator.count }} discussion{{ page_obj.paginator.count|pluralize }}</p>
                 </div>
-                {% if topic.creator == user %}
-                <a href="{% url 'forum:manage_topic' topic.slug %}" class="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-300 hover:scale-110" title="Gérer le sujet">
+                {% if group.creator == user %}
+                <a href="{% url 'forum:manage_group' group.id %}" class="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-300 hover:scale-110" title="Gérer le groupe">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -743,7 +743,7 @@
                     @click="showForm = !showForm"
                     class="flex-1 text-left px-5 py-3 rounded-2xl bg-white/10 text-gray-300 hover:bg-white/20 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-white/20"
                 >
-                    <span class="text-sm">Quoi de neuf dans {{ topic.name }} ?</span>
+                    <span class="text-sm">Quoi de neuf dans {{ group.name }} ?</span>
                 </button>
             </div>
             
@@ -751,11 +751,12 @@
                 <form method="POST" action="{% url 'forum:create_post' %}" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="topic_id" value="{{ topic.id }}">
+                    <input type="hidden" name="group_id" value="{{ group.id }}">
                     <textarea 
                         name="content" 
                         rows="4"
                         class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent resize-none backdrop-blur-sm transition-all"
-                        placeholder="Partagez vos pensées sur {{ topic.name }}..."
+                        placeholder="Partagez vos pensées sur {{ group.name }}..."
                     ></textarea>
                     
                     <div class="flex items-center justify-between flex-wrap gap-2">
@@ -1037,19 +1038,17 @@
         </div>
     </div>
     
-    <!-- Floating Chat Button (FAB) - Vers la messagerie du groupe avec couleur du topic -->
-    {% if first_group and first_group.id in user_groups %}
-    <a href="{% url 'forum:group_detail' first_group.id %}" class="fixed bottom-6 right-6 z-50 group">
+    <!-- Floating Chat Button (FAB) - Vers la messagerie du groupe avec couleur du groupe -->
+    <a href="{% url 'forum:group_detail' group.id %}" class="fixed bottom-6 right-6 z-50 group">
         <div class="relative">
-            <div class="absolute inset-0 rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse" style="background: {{ topic.color }};"></div>
-            <div class="relative w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 hover:rotate-12" style="background: {{ topic.color }};">
+            <div class="absolute inset-0 rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse" style="background: {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %};"></div>
+            <div class="relative w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 hover:rotate-12" style="background: {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %};">
                 <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
                 </svg>
             </div>
         </div>
     </a>
-    {% endif %}
     </div>
 </div>
 

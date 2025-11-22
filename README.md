@@ -132,12 +132,16 @@ Pour la production :
 
 ## 🎯 Roadmap
 
-- [ ] Notifications en temps réel
+- [x] Notifications en temps réel
+- [x] Partage de posts et profils
+- [x] Groupes/communautés
+- [x] Stories éphémères
+- [x] Chat en temps réel avec WebSockets
+- [x] Appels vocaux (WebRTC)
 - [ ] Recherche d'utilisateurs et posts
-- [ ] Partage de posts
 - [ ] Réactions (emoji)
-- [ ] Groupes/communautés
 - [ ] API REST complète
+- [ ] Application mobile (Flutter)
 
 ## 📄 Licence
 

@@ -1,9 +1,39 @@
-Django>=5.0.0
-daphne>=4.0.0
-channels>=4.0.0
-channels-redis>=4.2.0
-djangorestframework>=3.14.0
-django-cors-headers>=4.3.0
-psycopg2-binary>=2.9.9
-Pillow>=10.0.0
+# ============================================================================
+# DÉPENDANCES PRINCIPALES - KONGOSSA
+# ============================================================================
+
+# Framework Django
+Django>=5.0.0,<6.0.0
+
+# Serveur ASGI pour Django Channels (WebSockets)
+daphne>=4.0.0,<5.0.0
+
+# Django Channels pour WebSockets
+channels>=4.0.0,<5.0.0
+channels-redis>=4.2.0,<5.0.0  # Backend Redis pour Channels (production)
+
+# API REST
+djangorestframework>=3.14.0,<4.0.0
+
+# CORS headers pour les requêtes cross-origin
+django-cors-headers>=4.3.0,<5.0.0
+
+# Base de données PostgreSQL
+psycopg2-binary>=2.9.9,<3.0.0
+
+# Traitement d'images
+Pillow>=10.0.0,<11.0.0
+
+# ============================================================================
+# DÉPENDANCES OPTIONNELLES (décommenter si nécessaire)
+# ============================================================================
+
+# Gestion des variables d'environnement (recommandé)
+# python-decouple>=3.8
+
+# Monitoring et logging (production)
+# sentry-sdk>=1.40.0
+
+# Cache Redis (si utilisé)
+# redis>=5.0.0
 

@@ -53,3 +53,15 @@ def unread_count(request):
     count = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({'count': count})
 
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def delete_notification(request, notification_id):
+    """Supprimer une notification"""
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification.delete()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True})
+    return redirect('notifications:list')
+

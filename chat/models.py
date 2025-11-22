@@ -33,6 +33,8 @@ class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField(blank=True)
     image = models.ImageField(upload_to='messages/', blank=True, null=True)
+    video = models.FileField(upload_to='messages/videos/', blank=True, null=True, verbose_name="Vidéo")
+    audio = models.FileField(upload_to='messages/audios/', blank=True, null=True, verbose_name="Audio")
     file = models.FileField(upload_to='messages/files/', blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -12,6 +12,7 @@ User = get_user_model()
 class Story(models.Model):
     """Modèle pour les stories (24h)"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stories')
+    content = models.TextField(blank=True, verbose_name="Texte")
     image = models.ImageField(upload_to='stories/', blank=True, null=True)
     video = models.FileField(upload_to='stories/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

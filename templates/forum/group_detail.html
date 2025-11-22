@@ -505,11 +505,11 @@
         <!-- Header de groupe -->
         <header class="glass-card tab-bar border-b border-white/20 p-2 md:p-4 flex items-center justify-between gap-2 flex-shrink-0">
             <div class="flex items-center space-x-2 md:space-x-3 min-w-0 flex-1">
-                <!-- Bouton retour au feed (mobile) -->
+                <!-- Bouton retour au feed du groupe (mobile) -->
                 <a 
-                    href="{% url 'forum:feed' %}"
+                    href="{% url 'forum:group_feed' group.id %}"
                     class="md:hidden text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors flex-shrink-0"
-                    title="Retour au feed"
+                    title="Retour au fil d'actualité du groupe"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -555,11 +555,11 @@
             
             <!-- Actions -->
             <div class="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
-                <!-- Bouton retour au feed (desktop) -->
+                <!-- Bouton retour au feed du groupe (desktop) -->
                 <a 
-                    href="{% url 'forum:feed' %}"
+                    href="{% url 'forum:group_feed' group.id %}"
                     class="hidden md:flex text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-                    title="Retour au feed"
+                    title="Retour au fil d'actualité du groupe"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -615,6 +615,18 @@
                         {% endif %}
                         {% if message.image %}
                                 <img src="{{ message.image.url }}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('{{ message.image.url }}')">
+                            {% endif %}
+                            {% if message.video %}
+                                <video src="{{ message.video.url }}" controls class="mt-2 rounded-xl max-w-full max-h-64 shadow-md">
+                                    Votre navigateur ne supporte pas la lecture de vidéos.
+                                </video>
+                            {% endif %}
+                            {% if message.audio %}
+                                <div class="mt-2 p-2 md:p-3 rounded-xl bg-white/30 backdrop-blur-sm">
+                                    <audio src="{{ message.audio.url }}" controls class="w-full">
+                                        Votre navigateur ne supporte pas la lecture audio.
+                                    </audio>
+                                </div>
                             {% endif %}
                             {% if message.file %}
                                 <div class="mt-2 p-3 rounded-xl bg-white/30 backdrop-blur-sm flex items-center space-x-3 border border-white/20">
@@ -729,52 +741,81 @@
                     </div>
                 </div>
                 
-                <form id="group-message-form" class="flex items-center space-x-2 md:space-x-3" enctype="multipart/form-data">
+                <form id="group-message-form" class="flex items-end gap-1.5 md:gap-2.5 flex-wrap" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <input type="file" id="group-file-input" name="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" class="hidden" @change="selectedFile = $event.target.files[0]">
+                    <input type="file" id="group-file-input" name="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar" class="hidden" @change="selectedFile = $event.target.files[0]">
+                    <input type="file" id="group-video-input" name="video" accept="video/*" class="hidden" @change="selectedFile = $event.target.files[0]">
+                    <input type="file" id="group-audio-input" name="audio" accept="audio/*" class="hidden" @change="selectedFile = $event.target.files[0]">
                     <input type="hidden" id="group-file-name-input" name="file_name">
                     
-                    <!-- Bouton emoji -->
-                    <button 
-                        type="button"
-                        @click="emojiPickerOpen = !emojiPickerOpen"
-                        class="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
-                        title="Emoji"
-                    >
-                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
-                        </svg>
-                    </button>
-                    
-                    <!-- Bouton pièce jointe -->
-                    <button 
-                        type="button"
-                        @click="document.getElementById('group-file-input').click(); fileInput = document.getElementById('group-file-input')"
-                        class="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
-                        title="Pièce jointe"
-                    >
-                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-1.06-1.06a2.548 2.548 0 00-3.603 3.603l1.06 1.06" />
-                        </svg>
-                    </button>
+                    <!-- Boutons d'action (groupe compact sur mobile) -->
+                    <div class="flex items-center gap-1 md:gap-1.5 flex-shrink-0">
+                        <!-- Bouton emoji -->
+                        <button 
+                            type="button"
+                            @click="emojiPickerOpen = !emojiPickerOpen"
+                            class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
+                            title="Emoji"
+                        >
+                            <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+                            </svg>
+                        </button>
+                        
+                        <!-- Bouton vidéo -->
+                        <button 
+                            type="button"
+                            @click="document.getElementById('group-video-input').click(); fileInput = document.getElementById('group-video-input')"
+                            class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
+                            title="Vidéo"
+                        >
+                            <svg class="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                        </button>
+                        
+                        <!-- Bouton audio -->
+                        <button 
+                            type="button"
+                            @click="document.getElementById('group-audio-input').click(); fileInput = document.getElementById('group-audio-input')"
+                            class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
+                            title="Audio"
+                        >
+                            <svg class="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                            </svg>
+                        </button>
+                        
+                        <!-- Bouton pièce jointe -->
+                        <button 
+                            type="button"
+                            @click="document.getElementById('group-file-input').click(); fileInput = document.getElementById('group-file-input')"
+                            class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center"
+                            title="Pièce jointe"
+                        >
+                            <svg class="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-1.06-1.06a2.548 2.548 0 00-3.603 3.603l1.06 1.06" />
+                            </svg>
+                        </button>
+                    </div>
                     
                     <!-- Input texte multiligne -->
                     <textarea 
                         id="group-message-input"
                         placeholder="Écrire un message…"
                         rows="1"
-                        class="flex-1 px-3 md:px-4 py-2 md:py-3 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all text-sm md:text-base resize-none overflow-hidden max-h-32"
+                        class="flex-1 min-w-0 px-2.5 md:px-4 py-2 md:py-3 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all text-sm md:text-base resize-none overflow-hidden max-h-32"
                         autocomplete="off"
-                        style="min-height: 2.5rem;"
+                        style="min-height: 2rem; max-height: 8rem;"
                     ></textarea>
                     
                     <!-- Bouton envoi -->
                     <button 
                         type="submit"
-                        class="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
+                        class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
                         title="Envoyer"
                     >
-                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <svg class="w-3.5 h-3.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                         </svg>
                     </button>
@@ -872,7 +913,7 @@
     // Scroll to bottom on load (une seule fois)
     if (messagesContainer) {
         setTimeout(() => {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }, 100);
     }
     
@@ -916,8 +957,15 @@
         }
         formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
         
-        // Ajouter le fichier/image si sélectionné
-        if (fileInput && fileInput.files.length > 0) {
+        // Ajouter le fichier/image/vidéo/audio si sélectionné
+        const videoInput = document.getElementById('group-video-input');
+        const audioInput = document.getElementById('group-audio-input');
+        
+        if (videoInput && videoInput.files.length > 0) {
+            formData.append('video', videoInput.files[0]);
+        } else if (audioInput && audioInput.files.length > 0) {
+            formData.append('audio', audioInput.files[0]);
+        } else if (fileInput && fileInput.files.length > 0) {
             const selectedFile = fileInput.files[0];
             // Vérifier si c'est une image
             if (selectedFile.type && selectedFile.type.startsWith('image/')) {
@@ -955,8 +1003,18 @@
                     contentHtml += `<img src="${data.message.image}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('${data.message.image}')">`;
                 }
                 
-                // Ajouter le fichier si présent (et ce n'est pas une image)
-                if (data.message.file && data.message.file_name && !data.message.image) {
+                // Ajouter la vidéo si présente
+                if (data.message.video) {
+                    contentHtml += `<video src="${data.message.video}" controls class="mt-2 rounded-xl max-w-full max-h-64 shadow-md">Votre navigateur ne supporte pas la lecture de vidéos.</video>`;
+                }
+                
+                // Ajouter l'audio si présent
+                if (data.message.audio) {
+                    contentHtml += `<div class="mt-2 p-2 md:p-3 rounded-xl bg-white/30 backdrop-blur-sm"><audio src="${data.message.audio}" controls class="w-full">Votre navigateur ne supporte pas la lecture audio.</audio></div>`;
+                }
+                
+                // Ajouter le fichier si présent (et ce n'est pas une image/vidéo/audio)
+                if (data.message.file && data.message.file_name && !data.message.image && !data.message.video && !data.message.audio) {
                     const fileIcon = getFileIcon(data.message.file_name);
                     contentHtml += `
                         <div class="mt-2 p-3 rounded-xl bg-white/50 flex items-center space-x-3">

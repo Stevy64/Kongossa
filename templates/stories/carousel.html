@@ -1,38 +1,70 @@
 {% load static %}
 
-<div class="mb-6">
-    <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+<!-- Stories Carousel - Design Capsule Moderne -->
+<div class="mb-5">
+    <div class="w-full px-4 py-3 rounded-3xl bg-white/20 backdrop-blur-md shadow-lg flex items-center space-x-4 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
         <!-- Add Story Button -->
-        <div class="flex-shrink-0">
-            <a href="{% url 'stories:create_form' %}" class="block">
-                <div class="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 p-0.5">
-                    <div class="w-full h-full rounded-full bg-gray-900 flex flex-col items-center justify-center">
-                        <span class="text-white text-2xl mb-1">+</span>
-                        <span class="text-white text-xs">Story</span>
-                    </div>
+        <div class="flex-shrink-0 flex flex-col items-center">
+            <a href="{% url 'stories:create_form' %}" class="block group">
+                <div class="w-16 h-16 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center text-3xl text-gray-700 group-hover:text-gray-900 transition-all duration-300 hover:scale-105 shadow-md border-2 border-white/40">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
                 </div>
             </a>
+            <span class="text-xs mt-1.5 text-white/90 font-medium whitespace-nowrap">Add story</span>
         </div>
         
         <!-- User Stories -->
-        {% for user_data in users_with_stories %}
-            {% if user_data.stories %}
-                <div class="flex-shrink-0">
-                    <a href="{% url 'stories:viewer' user_data.stories.0.id %}" class="block">
-                        <div class="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 p-0.5">
-                            <div class="w-full h-full rounded-full bg-gray-900 flex items-center justify-center overflow-hidden">
-                                {% if user_data.user.avatar %}
-                                    <img src="{{ user_data.user.avatar.url }}" alt="{{ user_data.user.username }}" class="w-full h-full object-cover">
-                                {% else %}
-                                    <span class="text-white text-sm font-bold">{{ user_data.user.username|first|upper }}</span>
-                                {% endif %}
-                            </div>
+        {% if users_with_stories %}
+            {% for user_data in users_with_stories %}
+                {% if user_data.stories %}
+                    {% with first_story=user_data.stories.0 %}
+                        <div class="flex-shrink-0 flex flex-col items-center">
+                            <a href="{% url 'stories:viewer' first_story.id %}" class="block group">
+                                {% cycle 'from-blue-400 to-blue-600' 'from-pink-400 to-pink-600' 'from-red-400 to-red-600' 'from-green-400 to-green-600' 'from-purple-400 to-purple-600' 'from-yellow-400 to-yellow-600' as gradient_color silent %}
+                                <div class="w-16 h-16 rounded-full p-0.5 bg-gradient-to-br {{ gradient_color }} shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                                    <div class="w-full h-full rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center overflow-hidden border-2 border-white/40">
+                                        {% if first_story.image %}
+                                            <img src="{{ first_story.image.url }}" alt="Story de {{ user_data.user.username }}" class="w-full h-full object-cover" loading="lazy">
+                                        {% elif first_story.video %}
+                                            <div class="relative w-full h-full">
+                                                <video src="{{ first_story.video.url }}" class="w-full h-full object-cover" muted loading="lazy"></video>
+                                                <div class="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                    <svg class="w-5 h-5 text-white/90" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M8 5v14l11-7z"/>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        {% elif first_story.content %}
+                                            <div class="w-full h-full bg-gradient-to-br from-blue-600 to-green-600 flex items-center justify-center p-2">
+                                                <p class="text-white text-xs font-medium text-center line-clamp-2 leading-tight">{{ first_story.content|truncatewords:4 }}</p>
+                                            </div>
+                                        {% else %}
+                                            {% if user_data.user.avatar %}
+                                                <img src="{{ user_data.user.avatar.url }}" alt="{{ user_data.user.username }}" class="w-full h-full object-cover" loading="lazy">
+                                            {% else %}
+                                                <span class="text-white text-base font-bold">{{ user_data.user.username|first|upper }}</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                            <span class="text-xs mt-1.5 text-white/90 font-medium truncate max-w-[64px]">{{ user_data.user.username }}</span>
                         </div>
-                        <p class="text-white text-xs text-center mt-1 truncate w-20">{{ user_data.user.username }}</p>
-                    </a>
-                </div>
-            {% endif %}
-        {% endfor %}
+                    {% endwith %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
     </div>
 </div>
 
+<style>
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+</style>

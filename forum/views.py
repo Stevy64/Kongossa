@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.urls import reverse
 from .models import Post, Like, Comment, Topic, Group, GroupMessage, GroupRequest
 from stories.models import Story
@@ -90,16 +90,97 @@ def feed(request):
 
 @login_required
 def topics_list(request):
-    """Liste des thèmes de discussion"""
+    """Liste des thèmes de discussion avec recherche de groupes intégrée"""
     if not request.user.is_authenticated:
         return redirect('/auth/login/')
     
-    topics = Topic.objects.filter(is_active=True).annotate(
-        posts_count=Count('posts')
+    # Récupérer les topics auxquels l'utilisateur est abonné
+    subscribed_topic_ids = set()
+    if request.user.is_authenticated:
+        try:
+            subscribed_topic_ids = set(request.user.subscribed_topics.filter(is_active=True).values_list('id', flat=True))
+        except Exception:
+            # Si la table n'existe pas encore, retourner un set vide
+            subscribed_topic_ids = set()
+    
+    # Filtrer pour n'afficher que les topics auxquels l'utilisateur est abonné
+    topics = Topic.objects.filter(
+        is_active=True,
+        id__in=subscribed_topic_ids
+    ).annotate(
+        posts_count=Count('posts'),
+        subscribers_count=Count('subscribers')
     ).order_by('name')
+    
+    # Recherche de groupes (si une requête de recherche est présente)
+    groups = None
+    search_query = request.GET.get('q', '').strip()
+    topic_filter = request.GET.get('topic', '')
+    show_groups = request.GET.get('show', '') == 'groups' or search_query
+    
+    # Récupérer les groupes auxquels l'utilisateur est déjà abonné ou membre
+    subscribed_group_ids = set()
+    user_subscribed_group_ids = set()
+    if request.user.is_authenticated:
+        try:
+            subscribed_group_ids = set(request.user.subscribed_groups.values_list('id', flat=True))
+            user_subscribed_group_ids = set(request.user.forum_groups.values_list('id', flat=True))
+            # Combiner les deux sets
+            user_subscribed_group_ids = subscribed_group_ids | user_subscribed_group_ids
+        except Exception:
+            subscribed_group_ids = set()
+            user_subscribed_group_ids = set()
+    
+    # Toujours afficher les groupes auxquels l'utilisateur est abonné/membre
+    # Et aussi les groupes publics si recherche ou show_groups
+    if show_groups or search_query:
+        # Récupérer les groupes publics OU les groupes auxquels l'utilisateur est abonné/membre
+        groups = Group.objects.filter(
+            Q(is_public=True) | Q(id__in=user_subscribed_group_ids)
+        ).annotate(
+            members_count=Count('members'),
+            subscribers_count=Count('subscribers')
+        )
+        
+        # Filtrer par recherche
+        if search_query:
+            groups = groups.filter(
+                Q(name__icontains=search_query) | 
+                Q(description__icontains=search_query) |
+                Q(topic__name__icontains=search_query)
+            )
+        
+        # Filtrer par topic
+        if topic_filter:
+            groups = groups.filter(topic__slug=topic_filter)
+        
+        groups = groups.order_by('-subscribers_count', '-members_count', '-created_at')
+    else:
+        # Si pas de recherche, afficher uniquement les groupes auxquels l'utilisateur est abonné/membre
+        if user_subscribed_group_ids:
+            groups = Group.objects.filter(
+                id__in=user_subscribed_group_ids
+            ).annotate(
+                members_count=Count('members'),
+                subscribers_count=Count('subscribers')
+            ).order_by('-updated_at')
+            # Forcer show_groups à True pour afficher les groupes
+            show_groups = True
+        else:
+            groups = Group.objects.none()
+    
+    # Récupérer tous les topics pour le filtre
+    all_topics = Topic.objects.filter(is_active=True).order_by('name')
     
     return render(request, 'forum/topics_list.html', {
         'topics': topics,
+        'subscribed_topic_ids': subscribed_topic_ids,
+        'groups': groups,
+        'all_topics': all_topics,
+        'search_query': search_query,
+        'selected_topic': topic_filter,
+        'subscribed_group_ids': subscribed_group_ids,
+        'show_groups': show_groups,
     })
 
 
@@ -147,13 +228,19 @@ def create_topic(request):
 
 @login_required
 def topic_detail(request, slug):
-    """Détails d'un thème avec ses posts"""
+    """Détails d'un thème avec ses posts - Style feed principal"""
     topic = get_object_or_404(Topic, slug=slug, is_active=True)
+    
+    # Vérifier si l'utilisateur est abonné au topic
+    if not topic.is_subscribed(request.user):
+        messages.error(request, 'Vous devez être abonné à ce forum pour y accéder')
+        return redirect('forum:topics_list')
+    
     posts = Post.objects.filter(topic=topic).select_related('author', 'topic').prefetch_related('likes', 'comments').order_by('-created_at')
     
     # Pagination
     paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
+    page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
     # Vérifier les likes de l'utilisateur
@@ -161,13 +248,37 @@ def topic_detail(request, slug):
     if request.user.is_authenticated:
         liked_posts = set(Like.objects.filter(
             user=request.user,
-            post__in=posts
+            post__in=page_obj.object_list
         ).values_list('post_id', flat=True))
+    
+    # Récupérer les stories actives des membres du topic (uniquement première page)
+    users_with_stories = []
+    if page_number == 1 or not request.GET.get('page'):
+        # Récupérer les utilisateurs qui ont posté dans ce topic
+        topic_authors = posts.values_list('author_id', flat=True).distinct()
+        active_stories = Story.objects.filter(
+            expires_at__gt=timezone.now(),
+            user_id__in=topic_authors
+        ).select_related('user').order_by('-created_at')
+        
+        # Grouper par utilisateur
+        users_with_stories_dict = {}
+        for story in active_stories:
+            if story.user_id not in users_with_stories_dict:
+                users_with_stories_dict[story.user_id] = {
+                    'user': story.user,
+                    'stories': []
+                }
+            users_with_stories_dict[story.user_id]['stories'].append(story)
+        users_with_stories = list(users_with_stories_dict.values())
     
     # Récupérer les groupes du topic
     groups = Group.objects.filter(topic=topic).annotate(
         members_count=Count('members')
     ).order_by('-updated_at')
+    
+    # Récupérer le premier groupe (pour le bouton flottant)
+    first_group = groups.first() if groups.exists() else None
     
     # Vérifier les groupes où l'utilisateur est membre
     user_groups = set()
@@ -191,6 +302,13 @@ def topic_detail(request, slug):
         for req in user_requests:
             user_group_requests[req.group.id] = req
     
+    # Si requête AJAX, retourner uniquement les posts
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('ajax'):
+        return render(request, 'forum/posts_list.html', {
+            'page_obj': page_obj,
+            'liked_posts': liked_posts,
+        })
+    
     return render(request, 'forum/topic_detail.html', {
         'topic': topic,
         'page_obj': page_obj,
@@ -199,6 +317,8 @@ def topic_detail(request, slug):
         'user_groups': user_groups,
         'pending_requests': pending_requests,
         'user_group_requests': user_group_requests,
+        'users_with_stories': users_with_stories,
+        'first_group': first_group,
     })
 
 
@@ -206,12 +326,17 @@ def topic_detail(request, slug):
 @require_http_methods(["POST"])
 def create_post(request):
     """Créer un nouveau post"""
+    import mimetypes
+    
     content = request.POST.get('content', '').strip()
     image = request.FILES.get('image')
+    video = request.FILES.get('video')
+    audio = request.FILES.get('audio')
     topic_id = request.POST.get('topic_id')
+    group_id = request.POST.get('group_id')
     
-    if not content and not image:
-        messages.error(request, 'Le post doit contenir du texte ou une image')
+    if not content and not image and not video and not audio:
+        messages.error(request, 'Le post doit contenir du texte, une image, une vidéo ou un audio')
         return redirect('forum:feed')
     
     topic = None
@@ -225,10 +350,21 @@ def create_post(request):
         author=request.user,
         topic=topic,
         content=content,
-        image=image
+        image=image,
+        video=video,
+        audio=audio
     )
     messages.success(request, 'Post créé avec succès!')
     
+    # Si un group_id est fourni, rediriger vers le fil d'actualité du groupe
+    if group_id:
+        try:
+            group = Group.objects.get(id=group_id)
+            return redirect('forum:group_feed', group_id=group.id)
+        except Group.DoesNotExist:
+            pass
+    
+    # Sinon, rediriger vers le topic ou le feed principal
     if topic:
         return redirect('forum:topic_detail', slug=topic.slug)
     return redirect('/feed/')
@@ -299,14 +435,16 @@ def post_detail(request, post_id):
 
 @login_required
 def groups_list(request, topic_slug=None):
-    """Liste des groupes de discussion - Uniquement les groupes où l'utilisateur est membre ou invité"""
-    # Les groupes ne sont accessibles que via la messagerie et uniquement si on y est invité
-    # Afficher uniquement les groupes où l'utilisateur est membre
-    groups = Group.objects.filter(members=request.user).annotate(
-        members_count=Count('members')
-        ).order_by('-updated_at')
+    """Liste des groupes de discussion - Groupes auxquels l'utilisateur est abonné"""
+    # Afficher uniquement les groupes auxquels l'utilisateur est abonné ou membre
+    groups = Group.objects.filter(
+        Q(subscribers=request.user) | Q(members=request.user)
+    ).annotate(
+        members_count=Count('members'),
+        subscribers_count=Count('subscribers')
+    ).distinct().order_by('-updated_at')
     
-    # Vérifier les groupes où l'utilisateur est membre
+    # Vérifier les groupes où l'utilisateur est membre ou abonné
     user_groups = set(groups.values_list('id', flat=True))
     
     return render(request, 'forum/groups_list.html', {
@@ -317,17 +455,81 @@ def groups_list(request, topic_slug=None):
 
 
 @login_required
+def group_feed(request, group_id):
+    """Fil d'actualité d'un groupe - Affiche les posts du topic du groupe"""
+    group = get_object_or_404(Group, id=group_id)
+    
+    # Vérifier si l'utilisateur peut accéder au groupe (abonné ou membre)
+    if not group.can_access(request.user):
+        messages.error(request, 'Vous devez être abonné à ce groupe pour y accéder')
+        return redirect('forum:topics_list')
+    
+    topic = group.topic
+    
+    # Récupérer les posts du topic du groupe
+    posts = Post.objects.filter(topic=topic).select_related('author', 'topic').prefetch_related('likes', 'comments').order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(posts, 10)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Vérifier les likes de l'utilisateur
+    liked_posts = set()
+    if request.user.is_authenticated:
+        liked_posts = set(Like.objects.filter(
+            user=request.user,
+            post__in=page_obj.object_list
+        ).values_list('post_id', flat=True))
+    
+    # Récupérer les stories actives des membres du groupe (uniquement première page)
+    users_with_stories = []
+    if page_number == 1 or not request.GET.get('page'):
+        # Récupérer les utilisateurs qui sont membres du groupe
+        group_member_ids = group.members.values_list('id', flat=True)
+        active_stories = Story.objects.filter(
+            expires_at__gt=timezone.now(),
+            user_id__in=group_member_ids
+        ).select_related('user').order_by('-created_at')
+        
+        # Grouper par utilisateur
+        users_with_stories_dict = {}
+        for story in active_stories:
+            if story.user_id not in users_with_stories_dict:
+                users_with_stories_dict[story.user_id] = {
+                    'user': story.user,
+                    'stories': []
+                }
+            users_with_stories_dict[story.user_id]['stories'].append(story)
+        users_with_stories = list(users_with_stories_dict.values())
+    
+    # Si requête AJAX, retourner uniquement les posts
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('ajax'):
+        return render(request, 'forum/posts_list.html', {
+            'page_obj': page_obj,
+            'liked_posts': liked_posts,
+        })
+    
+    return render(request, 'forum/group_feed.html', {
+        'group': group,
+        'topic': topic,
+        'page_obj': page_obj,
+        'liked_posts': liked_posts,
+        'users_with_stories': users_with_stories,
+    })
+
+
+@login_required
 def group_detail(request, group_id):
-    """Détails d'un groupe avec ses messages - Accès restreint aux membres uniquement"""
-    group = get_object_or_404(Group.objects.prefetch_related('members', 'messages__sender'), id=group_id)
+    """Détails d'un groupe avec ses messages - Accès restreint aux abonnés/membres uniquement"""
+    group = get_object_or_404(Group.objects.prefetch_related('members', 'subscribers', 'messages__sender'), id=group_id)
     
-    # Vérifier si l'utilisateur est membre
+    # Vérifier si l'utilisateur peut accéder au groupe (abonné ou membre)
+    if not group.can_access(request.user):
+        messages.error(request, 'Vous devez être abonné à ce groupe pour y accéder')
+        return redirect('forum:topics_list')
+    
     is_member = group.is_member(request.user)
-    
-    # Les groupes ne sont accessibles que si on y est invité/membre
-    if not is_member:
-        messages.error(request, 'Vous devez être membre pour accéder à ce groupe. Les groupes sont accessibles uniquement via invitation.')
-        return redirect('chat:list')
     
     messages_list = group.messages.all()[:50]  # Derniers 50 messages
     
@@ -529,31 +731,46 @@ def send_group_message(request, group_id):
     
     content = request.POST.get('content', '').strip()
     image = request.FILES.get('image')
+    video = request.FILES.get('video')
+    audio = request.FILES.get('audio')
     file = request.FILES.get('file')
     file_name = request.POST.get('file_name', '')
     
-    if not content and not image and not file:
+    if not content and not image and not video and not audio and not file:
         return JsonResponse({'error': 'Le message ne peut pas être vide'}, status=400)
     
-    # Détecter si le fichier est une image
+    # Détecter si le fichier est une image, vidéo ou audio
     if file:
         if not file_name:
             file_name = file.name
         
-        # Vérifier si c'est une image par l'extension
+        # Vérifier le type de fichier
         import mimetypes
         file_type, _ = mimetypes.guess_type(file_name)
-        if file_type and file_type.startswith('image/'):
-            # C'est une image, l'enregistrer dans le champ image
-            image = file
-            file = None
-            file_name = None
+        if file_type:
+            if file_type.startswith('image/'):
+                # C'est une image, l'enregistrer dans le champ image
+                image = file
+                file = None
+                file_name = None
+            elif file_type.startswith('video/'):
+                # C'est une vidéo, l'enregistrer dans le champ video
+                video = file
+                file = None
+                file_name = None
+            elif file_type.startswith('audio/'):
+                # C'est un audio, l'enregistrer dans le champ audio
+                audio = file
+                file = None
+                file_name = None
     
     message = GroupMessage.objects.create(
         group=group,
         sender=request.user,
         content=content,
         image=image,
+        video=video,
+        audio=audio,
         file=file,
         file_name=file_name
     )
@@ -571,6 +788,8 @@ def send_group_message(request, group_id):
             'sender_avatar': message.sender.avatar.url if message.sender.avatar else None,
             'created_at': message.created_at.isoformat(),
             'image': message.image.url if message.image else None,
+            'video': message.video.url if message.video else None,
+            'audio': message.audio.url if message.audio else None,
             'file': message.file.url if message.file else None,
             'file_name': message.file_name,
         }
@@ -710,19 +929,160 @@ def update_topic(request, slug):
 
 @login_required
 @require_http_methods(["POST"])
-def delete_topic(request, slug):
-    """Supprimer un sujet"""
+def archive_topic(request, slug):
+    """Archiver un sujet (désactiver)"""
     topic = get_object_or_404(Topic, slug=slug)
     
     # Vérifier que l'utilisateur est le créateur
     if topic.creator and topic.creator != request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': 'Vous n\'avez pas la permission d\'archiver ce sujet'}, status=403)
+        messages.error(request, 'Vous n\'avez pas la permission d\'archiver ce sujet')
+        return redirect('forum:topic_detail', slug=slug)
+    
+    topic_name = topic.name
+    topic.is_active = False  # Désactiver
+    topic.save()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'message': f'Le forum "{topic_name}" a été archivé'})
+    
+    messages.success(request, f'Le sujet "{topic_name}" a été archivé')
+    return redirect('forum:topics_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_topic(request, slug):
+    """Supprimer définitivement un sujet"""
+    topic = get_object_or_404(Topic, slug=slug)
+    
+    # Vérifier que l'utilisateur est le créateur
+    if topic.creator and topic.creator != request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': 'Vous n\'avez pas la permission de supprimer ce sujet'}, status=403)
         messages.error(request, 'Vous n\'avez pas la permission de supprimer ce sujet')
         return redirect('forum:topic_detail', slug=slug)
     
     topic_name = topic.name
-    topic.is_active = False  # Désactiver plutôt que supprimer
-    topic.save()
+    topic.delete()  # Supprimer définitivement
     
-    messages.success(request, f'Le sujet "{topic_name}" a été désactivé')
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'message': f'Le forum "{topic_name}" a été supprimé'})
+    
+    messages.success(request, f'Le sujet "{topic_name}" a été supprimé')
     return redirect('forum:topics_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_topic_subscribe(request, slug):
+    """S'abonner/Se désabonner d'un topic"""
+    topic = get_object_or_404(Topic, slug=slug, is_active=True)
+    
+    if topic.subscribers.filter(id=request.user.id).exists():
+        # Se désabonner
+        topic.subscribers.remove(request.user)
+        is_subscribed = False
+        message = f'Vous vous êtes désabonné du forum "{topic.name}"'
+    else:
+        # S'abonner
+        topic.subscribers.add(request.user)
+        is_subscribed = True
+        message = f'Vous vous êtes abonné au forum "{topic.name}"'
+    
+    subscribers_count = topic.subscribers.count()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'is_subscribed': is_subscribed,
+            'subscribers_count': subscribers_count,
+            'message': message
+        })
+    
+    messages.success(request, message)
+    return redirect('forum:topics_list')
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_group_subscribe(request, group_id):
+    """S'abonner/Se désabonner d'un groupe"""
+    group = get_object_or_404(Group, id=group_id)
+    
+    # Si le groupe nécessite une approbation, utiliser le système de demande
+    if group.requires_approval:
+        if group.is_subscribed(request.user) or group.is_member(request.user):
+            # Se désabonner
+            group.subscribers.remove(request.user)
+            is_subscribed = False
+            message = f'Vous vous êtes désabonné du groupe "{group.name}"'
+        else:
+            # Créer une demande d'accès
+            request_obj, created = GroupRequest.objects.get_or_create(
+                group=group,
+                user=request.user,
+                defaults={'message': '', 'status': 'pending'}
+            )
+            
+            if created:
+                # Créer une notification pour le créateur
+                from notifications.models import Notification
+                Notification.objects.create(
+                    user=group.creator,
+                    notification_type='group_request',
+                    title='Nouvelle demande d\'accès',
+                    message=f'{request.user.username} demande à rejoindre le groupe "{group.name}"',
+                    related_object_id=group.id
+                )
+                message = f'Votre demande d\'accès au groupe "{group.name}" a été envoyée'
+            else:
+                message = 'Vous avez déjà une demande en attente pour ce groupe'
+            
+            is_subscribed = False
+            subscribers_count = group.subscribers.count()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'is_subscribed': is_subscribed,
+                    'subscribers_count': subscribers_count,
+                    'message': message,
+                    'requires_approval': True
+                })
+            
+            messages.success(request, message)
+            return redirect('forum:topics_list')
+    else:
+        # Groupe public, abonnement direct
+        if group.subscribers.filter(id=request.user.id).exists():
+            # Se désabonner
+            group.subscribers.remove(request.user)
+            # Retirer aussi des membres si présent
+            if group.is_member(request.user):
+                group.members.remove(request.user)
+            is_subscribed = False
+            message = f'Vous vous êtes désabonné du groupe "{group.name}"'
+        else:
+            # S'abonner
+            group.subscribers.add(request.user)
+            # Ajouter aussi aux membres pour l'accès
+            if not group.is_member(request.user):
+                group.members.add(request.user)
+            is_subscribed = True
+            message = f'Vous vous êtes abonné au groupe "{group.name}"'
+    
+    subscribers_count = group.subscribers.count()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'is_subscribed': is_subscribed,
+            'subscribers_count': subscribers_count,
+            'message': message
+        })
+    
+    messages.success(request, message)
+    return redirect('forum:topics_list')
+
 

@@ -74,15 +74,17 @@ def create_story_form(request):
 @require_http_methods(["POST"])
 def create_story(request):
     """Créer une nouvelle story"""
+    content = request.POST.get('content', '').strip()
     image = request.FILES.get('image')
     video = request.FILES.get('video')
     
-    if not image and not video:
-        messages.error(request, 'Vous devez uploader une image ou une vidéo')
+    if not content and not image and not video:
+        messages.error(request, 'Vous devez ajouter du texte, une image ou une vidéo')
         return redirect('stories:create_form')
     
     story = Story.objects.create(
         user=request.user,
+        content=content,
         image=image,
         video=video
     )
