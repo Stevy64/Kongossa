@@ -944,16 +944,200 @@
     const currentUserId = {{ user.id }};
     let typingTimeout;
     let isTyping = false;
-    
-    // Determine WebSocket protocol
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const chatSocket = new WebSocket(
-        wsProtocol + '//' + window.location.host + '/ws/chat/' + conversationId + '/'
-    );
+    let chatSocket = null;
+    let reconnectAttempts = 0;
+    let maxReconnectAttempts = 10;
+    let reconnectDelay = 1000; // Commence à 1 seconde
+    let isReconnecting = false;
     
     const messagesContainer = document.getElementById('messages-container');
     const typingIndicator = document.getElementById('typing-indicator');
     const messageInput = document.getElementById('chat-message-input');
+    
+    // Indicateur de connexion discret (comme WhatsApp/Instagram)
+    let connectionIndicator = null;
+    
+    // Fonction pour créer l'indicateur de connexion
+    function createConnectionIndicator() {
+        if (connectionIndicator) return connectionIndicator;
+        
+        connectionIndicator = document.createElement('div');
+        connectionIndicator.id = 'connection-indicator';
+        connectionIndicator.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 opacity-0 pointer-events-none';
+        connectionIndicator.style.display = 'none';
+        document.body.appendChild(connectionIndicator);
+        return connectionIndicator;
+    }
+    
+    // Fonction pour afficher l'état de connexion
+    function showConnectionStatus(status, message) {
+        const indicator = createConnectionIndicator();
+        indicator.className = `fixed top-16 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 ${status === 'connected' ? 'bg-green-500/90 text-white' : status === 'connecting' ? 'bg-yellow-500/90 text-white' : 'bg-red-500/90 text-white'}`;
+        indicator.textContent = message;
+        indicator.style.display = 'block';
+        indicator.style.opacity = '1';
+        
+        if (status === 'connected') {
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+    }
+    
+    // Fonction pour connecter le WebSocket avec reconnexion automatique
+    function connectChatSocket() {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            return; // Déjà connecté
+        }
+        
+        // Fermer l'ancien socket s'il existe
+        if (chatSocket) {
+            chatSocket.onclose = null;
+            chatSocket.onerror = null;
+            chatSocket.close();
+        }
+        
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = wsProtocol + '//' + window.location.host + '/ws/chat/' + conversationId + '/';
+        
+        try {
+            chatSocket = new WebSocket(wsUrl);
+            
+            chatSocket.onopen = function(e) {
+                console.log('Chat socket connected');
+                reconnectAttempts = 0;
+                reconnectDelay = 1000;
+                isReconnecting = false;
+                showConnectionStatus('connected', 'Connecté');
+            };
+            
+            chatSocket.onmessage = function(e) {
+                try {
+                    // Protection contre les erreurs de parsing JSON
+                    let data;
+                    try {
+                        data = JSON.parse(e.data);
+                    } catch (parseError) {
+                        console.error('Error parsing WebSocket message:', parseError, e.data);
+                        return; // Ignorer les messages invalides sans recharger
+                    }
+                    
+                    if (data.type === 'chat_message') {
+                        const message = data.message;
+                        if (!message || !message.id) {
+                            console.warn('Invalid message format received');
+                            return;
+                        }
+                        
+                        const isOwnMessage = message.sender_id === currentUserId;
+                        
+                        // Vérifier si le message n'existe pas déjà (éviter les doublons)
+                        const existingMessage = document.querySelector(`[data-message-id="${message.id}"]`);
+                        if (existingMessage) {
+                            return; // Message déjà affiché
+                        }
+                        
+                        addMessageToDOM(message, isOwnMessage);
+                        
+                        // Hide typing indicator if it was showing
+                        if (typingIndicator) {
+                            typingIndicator.classList.remove('active');
+                        }
+                    } else if (data.type === 'user_typing') {
+                        if (data.user_id !== currentUserId && typingIndicator) {
+                            typingIndicator.classList.add('active');
+                            scrollToBottomIfNeeded(messagesContainer);
+                        }
+                    } else if (data.type === 'user_stopped_typing') {
+                        if (data.user_id !== currentUserId && typingIndicator) {
+                            typingIndicator.classList.remove('active');
+                        }
+                    }
+                } catch (error) {
+                    // Capturer toutes les erreurs sans recharger
+                    console.error('Error handling WebSocket message:', error);
+                    // Ne pas recharger - juste logger l'erreur
+                }
+            };
+            
+            chatSocket.onerror = function(e) {
+                console.error('Chat socket error:', e);
+                // Ne pas recharger - juste afficher l'erreur et laisser onclose gérer la reconnexion
+                if (!isReconnecting) {
+                    showConnectionStatus('error', 'Erreur de connexion');
+                }
+                // La reconnexion sera gérée par onclose
+            };
+            
+            chatSocket.onclose = function(e) {
+                console.log('Chat socket closed', e.code, e.reason);
+                
+                // Ne JAMAIS recharger la page - toujours essayer de reconnecter
+                // Même après maxReconnectAttempts, on continue à essayer (comme WhatsApp/Instagram)
+                if (e.code !== 1000) {
+                    isReconnecting = true;
+                    
+                    // Si on n'a pas encore atteint le max, incrémenter
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                    }
+                    
+                    // Afficher l'indicateur de reconnexion
+                    showConnectionStatus('connecting', 'Reconnexion...');
+                    
+                    // Reconnexion avec backoff exponentiel (max 30 secondes)
+                    const delay = Math.min(reconnectDelay * Math.pow(2, Math.min(reconnectAttempts - 1, 5)), 30000);
+                    reconnectDelay = delay;
+                    
+                    setTimeout(() => {
+                        console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                        // Réessayer même si on a atteint le max (comme les apps modernes)
+                        connectChatSocket();
+                    }, delay);
+                } else {
+                    // Fermeture normale (code 1000) - ne rien faire
+                    console.log('Socket closed normally');
+                }
+            };
+        } catch (error) {
+            console.error('Error creating WebSocket:', error);
+            // Toujours réessayer, même après maxReconnectAttempts
+            const delay = Math.min(reconnectDelay * Math.pow(2, Math.min(reconnectAttempts, 5)), 30000);
+            setTimeout(() => {
+                reconnectAttempts++;
+                connectChatSocket();
+            }, delay);
+        }
+    }
+    
+    // Initialiser la connexion
+    connectChatSocket();
+    
+    // Empêcher tout rechargement de page accidentel
+    // Protection contre les erreurs qui pourraient causer des rechargements
+    const originalReload = window.location.reload;
+    window.location.reload = function() {
+        console.warn('location.reload() appelé - bloqué pour éviter les rechargements');
+        // Ne pas recharger - juste logger
+        return;
+    };
+    
+    // Protection contre les erreurs non gérées
+    window.addEventListener('error', function(e) {
+        console.error('Global error caught:', e.error, e.message, e.filename, e.lineno);
+        // Ne pas recharger - juste logger
+        e.preventDefault();
+        return false;
+    }, true);
+    
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('Unhandled promise rejection:', e.reason);
+        // Ne pas recharger - juste logger
+        e.preventDefault();
+    });
     
     // Fonction pour vérifier si l'utilisateur est près du bas
     function isNearBottom(container, threshold = 100) {
@@ -975,121 +1159,132 @@
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }, 100);
     
-    // Restaurer le brouillon de message après rechargement (si présent)
-    window.addEventListener('DOMContentLoaded', function() {
-        const draft = sessionStorage.getItem('chat_message_draft');
-        if (draft && messageInput) {
-            messageInput.value = draft;
-            autoResizeTextarea(messageInput);
-            messageInput.focus();
-            // Supprimer le brouillon après restauration
-            sessionStorage.removeItem('chat_message_draft');
-        }
+    // Protection globale contre les erreurs non gérées qui pourraient causer des rechargements
+    window.addEventListener('error', function(e) {
+        console.error('Global error caught:', e.error);
+        // Ne pas recharger - juste logger l'erreur
+        e.preventDefault();
+        return false;
     });
     
-    // Si le DOM est déjà chargé
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        const draft = sessionStorage.getItem('chat_message_draft');
-        if (draft && messageInput) {
-            messageInput.value = draft;
-            autoResizeTextarea(messageInput);
-            messageInput.focus();
-            sessionStorage.removeItem('chat_message_draft');
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('Unhandled promise rejection:', e.reason);
+        // Ne pas recharger - juste logger l'erreur
+        e.preventDefault();
+    });
+    
+    // Fonction pour ajouter un message au DOM (réutilisable pour WebSocket et HTTP)
+    function addMessageToDOM(message, isOwnMessage) {
+        // Vérifier si le message n'existe pas déjà
+        const existingMessage = document.querySelector(`[data-message-id="${message.id}"]`);
+        if (existingMessage) {
+            return; // Message déjà affiché
         }
-    }
-    
-    chatSocket.onopen = function(e) {
-        console.log('Chat socket connected');
-    };
-    
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
         
-        if (data.type === 'chat_message') {
-            const message = data.message;
-            const isOwnMessage = message.sender_id === currentUserId;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message-bubble ${isOwnMessage ? 'message-sent' : 'message-received'}`;
-            
-            const time = new Date(message.created_at).toLocaleTimeString('fr-FR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            });
-            
-            let content = `
-                <div>
-                    ${!isOwnMessage ? `<p class="text-xs font-semibold opacity-90 mb-1">${escapeHtml(message.sender)}</p>` : ''}
-                    <p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(message.content)}</p>
-                    <div class="flex items-center ${isOwnMessage ? 'justify-end' : 'justify-start'} mt-1.5 space-x-1">
-                        <span class="text-xs opacity-70">${time}</span>
-                        ${isOwnMessage ? '<svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>' : ''}
-                    </div>
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message-bubble ${isOwnMessage ? 'message-sent' : 'message-received'}`;
+        messageDiv.setAttribute('data-message-id', message.id);
+        
+        const time = new Date(message.created_at).toLocaleTimeString('fr-FR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        let content = '<div>';
+        
+        // Avatar et nom de l'expéditeur (seulement pour les messages reçus)
+        if (!isOwnMessage && message.sender) {
+            content += `
+                <div class="flex items-center space-x-2 mb-1">
+                    <a href="/auth/profile/${escapeHtml(message.sender)}/" class="flex items-center space-x-2 hover:opacity-80 transition-opacity group">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                            ${message.sender_avatar ? `<img src="${escapeHtml(message.sender_avatar)}" alt="${escapeHtml(message.sender)}" class="w-full h-full object-cover">` : `<span class="text-white text-xs font-bold">${escapeHtml(message.sender).charAt(0).toUpperCase()}</span>`}
+                        </div>
+                        <p class="text-xs font-semibold opacity-90">${escapeHtml(message.sender)}</p>
+                    </a>
                 </div>
             `;
-            
-            messageDiv.innerHTML = content;
-            messagesContainer.insertBefore(messageDiv, typingIndicator);
-            
-            // Scroller seulement si l'utilisateur est près du bas ou si c'est son propre message
-            if (isOwnMessage || isNearBottom(messagesContainer)) {
-                scrollToBottomIfNeeded(messagesContainer);
-            }
-            
-            // Hide typing indicator if it was showing
-            typingIndicator.classList.remove('active');
-        } else if (data.type === 'user_typing') {
-            if (data.user_id !== currentUserId) {
-                typingIndicator.classList.add('active');
-                scrollToBottomIfNeeded(messagesContainer);
-            }
-        } else if (data.type === 'user_stopped_typing') {
-            if (data.user_id !== currentUserId) {
-                typingIndicator.classList.remove('active');
-            }
         }
-    };
-    
-    chatSocket.onclose = function(e) {
-        console.error('Chat socket closed unexpectedly');
-        // Ne pas recharger si l'utilisateur est en train de taper
-        const messageInput = document.getElementById('chat-message-input');
-        const isUserTyping = messageInput && messageInput.value.trim().length > 0;
         
-        if (!isUserTyping) {
-            // Attendre 5 secondes avant de recharger (au lieu de 3)
-            setTimeout(function() {
-                // Vérifier à nouveau si l'utilisateur n'est pas en train de taper
-                const stillTyping = messageInput && messageInput.value.trim().length > 0;
-                if (!stillTyping) {
-                    location.reload();
-                }
-            }, 5000);
-        } else {
-            // Si l'utilisateur est en train de taper, essayer de reconnecter au lieu de recharger
-            console.log('User is typing, attempting to reconnect...');
-            setTimeout(function() {
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const newSocket = new WebSocket(
-                    wsProtocol + '//' + window.location.host + '/ws/chat/' + conversationId + '/'
-                );
-                
-                // Réassigner tous les handlers
-                newSocket.onopen = chatSocket.onopen;
-                newSocket.onmessage = chatSocket.onmessage;
-                newSocket.onerror = chatSocket.onerror;
-                newSocket.onclose = chatSocket.onclose;
-                
-                // Remplacer l'ancien socket
-                chatSocket = newSocket;
-                console.log('Chat socket reconnection attempted');
-            }, 2000);
+        // Contenu du message
+        if (message.content) {
+            content += `<p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(message.content)}</p>`;
         }
-    };
-    
-    chatSocket.onerror = function(e) {
-        console.error('Chat socket error:', e);
-    };
+        
+        // Image
+        if (message.image) {
+            content += `<img src="${escapeHtml(message.image)}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('${escapeHtml(message.image)}')">`;
+        }
+        
+        // Vidéo
+        if (message.video) {
+            content += `<video src="${escapeHtml(message.video)}" controls class="mt-2 rounded-xl max-w-full max-h-64 shadow-md">Votre navigateur ne supporte pas la lecture de vidéos.</video>`;
+        }
+        
+        // Audio
+        if (message.audio) {
+            content += `<div class="mt-2 p-2 md:p-3 rounded-xl bg-white/30 backdrop-blur-sm"><audio src="${escapeHtml(message.audio)}" controls class="w-full">Votre navigateur ne supporte pas la lecture audio.</audio></div>`;
+        }
+        
+        // Fichier
+        if (message.file) {
+            const fileName = message.file_name || 'Fichier';
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            let fileIcon = '';
+            
+            if (fileExtension === 'pdf') {
+                fileIcon = '<svg class="w-6 h-6 md:w-8 md:h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+            } else if (fileExtension.includes('doc')) {
+                fileIcon = '<svg class="w-6 h-6 md:w-8 md:h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+            } else if (fileExtension.includes('xls')) {
+                fileIcon = '<svg class="w-6 h-6 md:w-8 md:h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+            } else {
+                fileIcon = '<svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>';
+            }
+            
+            content += `
+                <div class="mt-2 p-2 md:p-3 rounded-xl bg-white/30 backdrop-blur-sm flex items-center space-x-2 md:space-x-3 gap-2 border border-white/20">
+                    <div class="flex-shrink-0">${fileIcon}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs md:text-sm font-semibold opacity-90 truncate">${escapeHtml(fileName)}</p>
+                        <p class="text-xs opacity-75">Fichier joint</p>
+                    </div>
+                    <a href="${escapeHtml(message.file)}" download class="flex-shrink-0 text-blue-500 hover:text-blue-700 transition-colors" title="Télécharger">
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                    </a>
+                </div>
+            `;
+        }
+        
+        // Timestamp et statut de lecture
+        content += `
+            <div class="flex items-center ${isOwnMessage ? 'justify-end' : 'justify-start'} mt-1.5 space-x-1">
+                <span class="text-xs opacity-70">${time}</span>
+                ${isOwnMessage ? '<svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>' : ''}
+            </div>
+        </div>`;
+        
+        messageDiv.innerHTML = content;
+        messagesContainer.insertBefore(messageDiv, typingIndicator);
+        
+        // Animation d'apparition
+        requestAnimationFrame(() => {
+            messageDiv.style.opacity = '0';
+            messageDiv.style.transform = 'translateY(10px)';
+            messageDiv.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            requestAnimationFrame(() => {
+                messageDiv.style.opacity = '1';
+                messageDiv.style.transform = 'translateY(0)';
+            });
+        });
+        
+        // Scroller seulement si l'utilisateur est près du bas ou si c'est son propre message
+        if (isOwnMessage || isNearBottom(messagesContainer)) {
+            scrollToBottomIfNeeded(messagesContainer);
+        }
+    }
     
     // Auto-resize textarea
     function autoResizeTextarea(textarea) {
@@ -1105,20 +1300,25 @@
     messageInput.addEventListener('input', function() {
         autoResizeTextarea(this);
         
-        if (!isTyping) {
-            isTyping = true;
-            chatSocket.send(JSON.stringify({
-                'type': 'typing'
-            }));
+        // Envoyer l'indicateur de frappe seulement si le WebSocket est connecté
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            if (!isTyping) {
+                isTyping = true;
+                chatSocket.send(JSON.stringify({
+                    'type': 'typing'
+                }));
+            }
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(function() {
+                isTyping = false;
+                if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                    chatSocket.send(JSON.stringify({
+                        'type': 'stop_typing'
+                    }));
+                }
+            }, 1000);
         }
-        
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(function() {
-            isTyping = false;
-            chatSocket.send(JSON.stringify({
-                'type': 'stop_typing'
-            }));
-        }, 1000);
     });
     
     // Gérer Enter (envoyer) vs Shift+Enter (nouvelle ligne)
@@ -1157,6 +1357,12 @@
             
             formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
             
+            // Désactiver le bouton d'envoi pendant l'envoi
+            const submitButton = document.querySelector('#chat-form button[type="submit"]');
+            const originalButtonContent = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<svg class="w-3.5 h-3.5 md:w-5 md:h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>';
+            
             fetch(`{% url 'chat:send_message' conversation.id %}`, {
                 method: 'POST',
                 body: formData
@@ -1164,9 +1370,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Sauvegarder le contenu du textarea avant rechargement
-                    const messageContent = messageInput.value;
-                    sessionStorage.setItem('chat_message_draft', messageContent);
+                    // Ajouter le message directement au DOM sans rechargement
+                    addMessageToDOM(data.message, true);
                     
                     // Réinitialiser le formulaire
                     messageInput.value = '';
@@ -1178,22 +1383,61 @@
                     if (videoInput) videoInput.value = '';
                     if (audioInput) audioInput.value = '';
                     
-                    // Recharger la page pour afficher le nouveau message avec fichier
-                    location.reload();
+                    // Réinitialiser Alpine.js selectedFile
+                    if (window.Alpine && window.Alpine.store) {
+                        window.Alpine.store('selectedFile', null);
+                    }
+                    
+                    // Réactiver le bouton
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonContent;
                 } else if (data.error) {
                     alert('Erreur: ' + data.error);
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonContent;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('Erreur lors de l\'envoi du fichier');
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonContent;
             });
         } else if (message) {
-            // Envoyer le message texte via WebSocket
-            chatSocket.send(JSON.stringify({
-                'type': 'chat_message',
-                'content': message
-            }));
+            // Vérifier que le WebSocket est connecté
+            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+                // Si le WebSocket n'est pas connecté, envoyer via HTTP comme fallback
+                const formData = new FormData();
+                formData.append('content', message);
+                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                
+                fetch(`{% url 'chat:send_message' conversation.id %}`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addMessageToDOM(data.message, true);
+                        messageInput.value = '';
+                        messageInput.style.height = 'auto';
+                        autoResizeTextarea(messageInput);
+                    } else if (data.error) {
+                        alert('Erreur: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Erreur lors de l\'envoi du message');
+                });
+            } else {
+                // Envoyer le message texte via WebSocket
+                chatSocket.send(JSON.stringify({
+                    'type': 'chat_message',
+                    'content': message
+                }));
+            }
+            
             messageInput.value = '';
             messageInput.style.height = 'auto';
             autoResizeTextarea(messageInput);
@@ -1209,9 +1453,11 @@
             // Stop typing indicator
             clearTimeout(typingTimeout);
             isTyping = false;
-            chatSocket.send(JSON.stringify({
-                'type': 'stop_typing'
-            }));
+            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                chatSocket.send(JSON.stringify({
+                    'type': 'stop_typing'
+                }));
+            }
         }
     };
     
@@ -1891,9 +2137,31 @@
     }
     
     // S'assurer que le socket est connecté avant de quitter la page
-    window.addEventListener('beforeunload', function() {
+    // Mais ne PAS empêcher la navigation normale
+    window.addEventListener('beforeunload', function(e) {
         if (isCallActive) {
             endCall();
+        }
+        // Ne pas empêcher la navigation - juste nettoyer
+    });
+    
+    // Empêcher les rechargements automatiques causés par des erreurs
+    // Protection supplémentaire : intercepter toutes les tentatives de rechargement
+    const preventReload = function() {
+        // Sauvegarder le contenu du textarea avant tout rechargement potentiel
+        if (messageInput && messageInput.value.trim()) {
+            sessionStorage.setItem('chat_message_draft', messageInput.value);
+        }
+    };
+    
+    // Intercepter les événements qui pourraient causer des rechargements
+    document.addEventListener('visibilitychange', function() {
+        // Si la page devient visible, vérifier la connexion WebSocket
+        if (document.visibilityState === 'visible') {
+            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+                console.log('Page visible, reconnexion du WebSocket...');
+                connectChatSocket();
+            }
         }
     });
     
