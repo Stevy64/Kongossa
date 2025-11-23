@@ -218,6 +218,38 @@ def send_message(request, conversation_id):
     # Mettre à jour la date de modification de la conversation
     conversation.save()
     
+    # Envoyer le message via WebSocket à tous les participants
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            room_group_name = f'chat_{conversation.id}'
+            async_to_sync(channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': {
+                        'id': message.id,
+                        'content': message.content,
+                        'sender': message.sender.username,
+                        'sender_id': message.sender.id,
+                        'sender_avatar': message.sender.avatar.url if message.sender.avatar else None,
+                        'created_at': message.created_at.isoformat(),
+                        'image': message.image.url if message.image else None,
+                        'video': message.video.url if message.video else None,
+                        'audio': message.audio.url if message.audio else None,
+                        'file': message.file.url if message.file else None,
+                        'file_name': message.file_name,
+                        'read_at': message.read_at.isoformat() if message.read_at else None,
+                    }
+                }
+            )
+    except Exception as e:
+        # Si le channel layer n'est pas disponible, continuer quand même
+        print(f"Error sending message via WebSocket: {e}")
+    
     return JsonResponse({
         'success': True,
         'message': {
@@ -232,8 +264,48 @@ def send_message(request, conversation_id):
             'audio': message.audio.url if message.audio else None,
             'file': message.file.url if message.file else None,
             'file_name': message.file_name,
+            'read_at': message.read_at.isoformat() if message.read_at else None,
         }
     })
+
+
+@login_required
+@require_http_methods(["POST"])
+def mark_message_read(request, message_id):
+    """Marquer un message comme lu"""
+    from django.http import JsonResponse
+    
+    message = get_object_or_404(Message, id=message_id)
+    
+    # Vérifier que l'utilisateur fait partie de la conversation
+    if request.user not in message.conversation.participants.all():
+        return JsonResponse({'error': 'Accès refusé'}, status=403)
+    
+    # Marquer comme lu seulement si ce n'est pas le propre message de l'utilisateur
+    if message.sender != request.user and not message.read_at:
+        message.read_at = timezone.now()
+        message.save()
+        
+        # Envoyer une mise à jour via WebSocket pour mettre à jour les doubles coches
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                room_group_name = f'chat_{message.conversation.id}'
+                async_to_sync(channel_layer.group_send)(
+                    room_group_name,
+                    {
+                        'type': 'message_read',
+                        'message_id': message.id,
+                        'read_at': message.read_at.isoformat(),
+                    }
+                )
+        except Exception as e:
+            print(f"Error sending read status via WebSocket: {e}")
+    
+    return JsonResponse({'success': True})
 
 
 @login_required

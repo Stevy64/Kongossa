@@ -1011,6 +1011,15 @@
                 reconnectAttempts = 0;
                 reconnectDelay = 1000;
                 isReconnecting = false;
+                // Masquer l'indicateur de reconnexion si présent
+                const indicator = document.getElementById('connection-indicator');
+                if (indicator) {
+                    indicator.style.opacity = '0';
+                    setTimeout(() => {
+                        indicator.style.display = 'none';
+                    }, 300);
+                }
+                // Afficher brièvement "Connecté" puis masquer
                 showConnectionStatus('connected', 'Connecté');
             };
             
@@ -1042,6 +1051,23 @@
                         
                         addMessageToDOM(message, isOwnMessage);
                         
+                        // Si c'est un message reçu, marquer comme lu automatiquement
+                        if (!isOwnMessage) {
+                            // Marquer le message comme lu via une requête HTTP silencieuse
+                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                                            document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+                            fetch(`/chat/message/${message.id}/mark-read/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': csrfToken,
+                                    'Content-Type': 'application/json',
+                                },
+                            }).catch(err => {
+                                // Ignorer les erreurs silencieusement
+                                console.log('Could not mark message as read:', err);
+                            });
+                        }
+                        
                         // Hide typing indicator if it was showing
                         if (typingIndicator) {
                             typingIndicator.classList.remove('active');
@@ -1054,6 +1080,17 @@
                     } else if (data.type === 'user_stopped_typing') {
                         if (data.user_id !== currentUserId && typingIndicator) {
                             typingIndicator.classList.remove('active');
+                        }
+                    } else if (data.type === 'message_read') {
+                        // Mettre à jour les doubles coches pour un message lu
+                        const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+                        if (messageElement) {
+                            const readIcon = messageElement.querySelector('.read-status-icon');
+                            if (readIcon) {
+                                readIcon.innerHTML = '<svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854 2.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path d="M15.854 1.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 1 .708-.708L8.5 8.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>';
+                                readIcon.classList.remove('text-gray-400');
+                                readIcon.classList.add('text-blue-500');
+                            }
                         }
                     }
                 } catch (error) {
@@ -1085,12 +1122,13 @@
                         reconnectAttempts++;
                     }
                     
-                    // Afficher l'indicateur de reconnexion
-                    showConnectionStatus('connecting', 'Reconnexion...');
+                    // Afficher l'indicateur de reconnexion seulement la première fois ou toutes les 5 tentatives
+                    if (reconnectAttempts === 1 || reconnectAttempts % 5 === 0) {
+                        showConnectionStatus('connecting', 'Reconnexion...');
+                    }
                     
-                    // Reconnexion avec backoff exponentiel (max 30 secondes)
-                    const delay = Math.min(reconnectDelay * Math.pow(2, Math.min(reconnectAttempts - 1, 5)), 30000);
-                    reconnectDelay = delay;
+                    // Reconnexion avec backoff exponentiel (max 3 secondes pour éviter les reconnexions trop rapides)
+                    const delay = Math.min(reconnectDelay * Math.pow(2, Math.min(reconnectAttempts - 1, 2)), 3000);
                     
                     setTimeout(() => {
                         console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
@@ -1100,6 +1138,8 @@
                 } else {
                     // Fermeture normale (code 1000) - ne rien faire
                     console.log('Socket closed normally');
+                    isReconnecting = false;
+                    reconnectAttempts = 0;
                 }
             };
         } catch (error) {
@@ -1258,11 +1298,23 @@
             `;
         }
         
-        // Timestamp et statut de lecture
+        // Timestamp et statut de lecture (doubles coches style WhatsApp)
+        const isRead = message.read_at !== null && message.read_at !== undefined;
+        let readStatusIcon = '';
+        if (isOwnMessage) {
+            if (isRead) {
+                // Double coche bleue (message lu) - style WhatsApp
+                readStatusIcon = '<svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854 2.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path d="M15.854 1.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 1 .708-.708L8.5 8.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>';
+            } else {
+                // Double coche grise (message envoyé mais pas lu) - style WhatsApp
+                readStatusIcon = '<svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854 2.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path d="M15.854 1.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 1 .708-.708L8.5 8.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>';
+            }
+        }
+        
         content += `
             <div class="flex items-center ${isOwnMessage ? 'justify-end' : 'justify-start'} mt-1.5 space-x-1">
                 <span class="text-xs opacity-70">${time}</span>
-                ${isOwnMessage ? '<svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>' : ''}
+                ${isOwnMessage ? `<span class="read-status-icon">${readStatusIcon}</span>` : ''}
             </div>
         </div>`;
         
