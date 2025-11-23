@@ -28,5 +28,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Créer la colonne dans la base de données si elle n'existe pas
         migrations.RunPython(check_and_add_banner, reverse_banner, atomic=False),
+        # Informer Django de l'état du modèle (la colonne existe maintenant)
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                # Ne rien faire dans la base de données - la colonne existe déjà ou vient d'être créée
+                migrations.RunSQL(
+                    sql="-- Colonne banner gérée par RunPython ci-dessus",
+                    reverse_sql="-- Pas de rollback nécessaire",
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='user',
+                    name='banner',
+                    field=models.ImageField(blank=True, null=True, upload_to='banners/'),
+                ),
+            ],
+        ),
     ]

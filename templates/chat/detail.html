@@ -87,6 +87,60 @@
         .chat-container {
             height: calc(100vh - 60px);
         }
+        
+        /* Améliorer la zone de saisie sur mobile */
+        .glass-card.tab-bar {
+            padding: 0.75rem;
+        }
+        
+        /* Input plus grand et lisible sur mobile */
+        #chat-message-input {
+            font-size: 16px !important; /* Évite le zoom automatique sur iOS */
+            min-height: 2.5rem !important;
+            padding: 0.625rem 0.875rem !important;
+        }
+        
+        /* Boutons plus grands et espacés sur mobile */
+        .glass-card.tab-bar button,
+        .glass-card.tab-bar .flex button {
+            min-width: 2.5rem;
+            min-height: 2.5rem;
+            padding: 0.5rem;
+        }
+        
+        /* Messages plus lisibles sur mobile */
+        .message-bubble {
+            max-width: 90% !important;
+            padding: 0.875rem 1rem !important;
+            font-size: 0.9375rem;
+        }
+        
+        /* Header plus compact sur mobile */
+        header.glass-card {
+            padding: 0.5rem 0.75rem;
+        }
+        
+        /* Zone de messages avec padding adapté */
+        .messages-container {
+            padding: 0.75rem;
+        }
+    }
+    
+    /* Optimisation pour très petits écrans */
+    @media (max-width: 375px) {
+        .chat-container {
+            height: calc(100vh - 50px);
+        }
+        
+        #chat-message-input {
+            font-size: 16px !important;
+            padding: 0.5rem 0.75rem !important;
+        }
+        
+        .message-bubble {
+            max-width: 95% !important;
+            padding: 0.75rem 0.875rem !important;
+        }
     }
     
     /* Zone des messages */
@@ -866,7 +920,7 @@
                         rows="1"
                         class="flex-1 min-w-0 px-2.5 md:px-4 py-2 md:py-3 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all text-sm md:text-base resize-none overflow-hidden max-h-32"
                     autocomplete="off"
-                        style="min-height: 2rem; max-height: 8rem;"
+                        style="min-height: 2.5rem; max-height: 8rem; font-size: 16px;"
                     ></textarea>
                     
                     <!-- Bouton envoi -->
@@ -918,8 +972,31 @@
     
     // Scroll to bottom on load (une seule fois)
     setTimeout(() => {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }, 100);
+    
+    // Restaurer le brouillon de message après rechargement (si présent)
+    window.addEventListener('DOMContentLoaded', function() {
+        const draft = sessionStorage.getItem('chat_message_draft');
+        if (draft && messageInput) {
+            messageInput.value = draft;
+            autoResizeTextarea(messageInput);
+            messageInput.focus();
+            // Supprimer le brouillon après restauration
+            sessionStorage.removeItem('chat_message_draft');
+        }
+    });
+    
+    // Si le DOM est déjà chargé
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        const draft = sessionStorage.getItem('chat_message_draft');
+        if (draft && messageInput) {
+            messageInput.value = draft;
+            autoResizeTextarea(messageInput);
+            messageInput.focus();
+            sessionStorage.removeItem('chat_message_draft');
+        }
+    }
     
     chatSocket.onopen = function(e) {
         console.log('Chat socket connected');
@@ -975,9 +1052,39 @@
     
     chatSocket.onclose = function(e) {
         console.error('Chat socket closed unexpectedly');
-        setTimeout(function() {
-            location.reload();
-        }, 3000);
+        // Ne pas recharger si l'utilisateur est en train de taper
+        const messageInput = document.getElementById('chat-message-input');
+        const isUserTyping = messageInput && messageInput.value.trim().length > 0;
+        
+        if (!isUserTyping) {
+            // Attendre 5 secondes avant de recharger (au lieu de 3)
+            setTimeout(function() {
+                // Vérifier à nouveau si l'utilisateur n'est pas en train de taper
+                const stillTyping = messageInput && messageInput.value.trim().length > 0;
+                if (!stillTyping) {
+                    location.reload();
+                }
+            }, 5000);
+        } else {
+            // Si l'utilisateur est en train de taper, essayer de reconnecter au lieu de recharger
+            console.log('User is typing, attempting to reconnect...');
+            setTimeout(function() {
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const newSocket = new WebSocket(
+                    wsProtocol + '//' + window.location.host + '/ws/chat/' + conversationId + '/'
+                );
+                
+                // Réassigner tous les handlers
+                newSocket.onopen = chatSocket.onopen;
+                newSocket.onmessage = chatSocket.onmessage;
+                newSocket.onerror = chatSocket.onerror;
+                newSocket.onclose = chatSocket.onclose;
+                
+                // Remplacer l'ancien socket
+                chatSocket = newSocket;
+                console.log('Chat socket reconnection attempted');
+            }, 2000);
+        }
     };
     
     chatSocket.onerror = function(e) {
@@ -1057,6 +1164,20 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Sauvegarder le contenu du textarea avant rechargement
+                    const messageContent = messageInput.value;
+                    sessionStorage.setItem('chat_message_draft', messageContent);
+                    
+                    // Réinitialiser le formulaire
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                    autoResizeTextarea(messageInput);
+                    
+                    // Réinitialiser les inputs de fichiers
+                    if (fileInput) fileInput.value = '';
+                    if (videoInput) videoInput.value = '';
+                    if (audioInput) audioInput.value = '';
+                    
                     // Recharger la page pour afficher le nouveau message avec fichier
                     location.reload();
                 } else if (data.error) {

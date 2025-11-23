@@ -376,7 +376,7 @@
                             class="glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200"
                         >
                             <a 
-                                href="{% if contact_data.has_conversation %}{% url 'chat:detail' contact_data.conversation_id %}{% else %}{% url 'chat:start_conversation' contact_data.user.id %}{% endif %}" 
+                                href="{% if contact_data.has_conversation %}{% url 'chat:detail' contact_data.conversation_id %}{% else %}{% url 'chat:start' contact_data.user.id %}{% endif %}" 
                                 class="flex items-center space-x-3"
                             >
                                 <!-- Avatar -->

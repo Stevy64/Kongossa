@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="fr" class="h-full">
 <head>
@@ -6,8 +7,20 @@
     <title>{% block title %}Kongossa - Votre forum gabonais{% endblock %}</title>
     
     <!-- TailwindCSS CDN avec configuration personnalisée -->
+    <!-- Note: En production, considérer l'utilisation de Tailwind compilé via PostCSS/CLI -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Supprimer l'avertissement de production pour Tailwind CDN
+        if (typeof console !== 'undefined' && console.warn) {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+                    return; // Ignorer l'avertissement Tailwind CDN
+                }
+                originalWarn.apply(console, args);
+            };
+        }
+        
         tailwind.config = {
             theme: {
                 extend: {

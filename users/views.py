@@ -151,7 +151,29 @@ def logout_view(request):
 def profile(request, username):
     """Profil utilisateur"""
     try:
-        profile_user = User.objects.get(username=username)
+        # Nettoyer le username (enlever les espaces)
+        username = username.strip()
+        print(f"DEBUG profile - Recherche de l'utilisateur avec username: '{username}'")
+        
+        if not username:
+            messages.error(request, 'Nom d\'utilisateur invalide')
+            return redirect('forum:feed')
+        
+        # Essayer de trouver l'utilisateur
+        try:
+            profile_user = User.objects.get(username=username)
+            print(f"DEBUG profile - Utilisateur trouvé: ID={profile_user.id}, Username='{profile_user.username}'")
+        except User.DoesNotExist:
+            print(f"DEBUG profile - Utilisateur NON trouvé avec username: '{username}'")
+            # Si l'utilisateur n'est pas trouvé, vérifier si c'est l'utilisateur connecté qui n'a pas de username
+            if request.user.is_authenticated:
+                request.user.refresh_from_db()
+                print(f"DEBUG profile - User connecté: ID={request.user.id}, Username='{request.user.username}'")
+                if not request.user.username or request.user.username.strip() == '':
+                    # Rediriger vers la page d'édition pour générer un username
+                    messages.info(request, 'Veuillez d\'abord compléter votre profil pour générer un nom d\'utilisateur.')
+                    return redirect('users:edit_profile')
+            raise User.DoesNotExist
         from forum.models import Post
         posts = Post.objects.filter(author=profile_user).order_by('-created_at')[:10]
         from stories.models import Story
@@ -214,8 +236,12 @@ def profile(request, username):
 @login_required
 def edit_profile(request):
     """Modifier le profil"""
+    # Récupérer l'utilisateur et rafraîchir depuis la DB
+    user = request.user
+    user.refresh_from_db()
+    print(f"DEBUG edit_profile - User ID: {user.id}, Username: '{user.username}', Email: '{user.email}'")
+    
     if request.method == 'POST':
-        user = request.user
         try:
             # Mettre à jour la bio
             user.bio = request.POST.get('bio', '').strip()
@@ -276,20 +302,106 @@ def edit_profile(request):
                     return render(request, 'users/edit_profile.html', {'user': user})
                 user.banner = banner_file
             
+            # S'assurer que l'utilisateur a un username
+            # Si le username est vide, générer un username basé sur l'ID ou l'email
+            if not user.username or user.username.strip() == '':
+                if user.email:
+                    # Utiliser l'email comme base pour le username
+                    base_username = user.email.split('@')[0]
+                    # Nettoyer le username (enlever caractères spéciaux)
+                    import re
+                    base_username = re.sub(r'[^a-zA-Z0-9_]', '', base_username)
+                    if not base_username:
+                        base_username = 'user'
+                    username = base_username
+                    counter = 1
+                    while User.objects.filter(username=username).exclude(id=user.id).exists():
+                        username = f"{base_username}{counter}"
+                        counter += 1
+                    user.username = username
+                elif user.phone:
+                    # Utiliser le téléphone comme base
+                    base_username = f"user_{user.phone.replace(' ', '').replace('+', '').replace('-', '')}"
+                    username = base_username
+                    counter = 1
+                    while User.objects.filter(username=username).exclude(id=user.id).exists():
+                        username = f"{base_username}{counter}"
+                        counter += 1
+                    user.username = username
+                else:
+                    # Utiliser l'ID comme base
+                    user.username = f"user_{user.id}"
+            
             # Sauvegarder les modifications
             user.save()
+            # Rafraîchir depuis la base de données pour s'assurer qu'on a les dernières données
+            user.refresh_from_db()
+            
             messages.success(request, 'Profil mis à jour avec succès')
-            # S'assurer que le username existe avant de rediriger
-            if user.username:
-                return redirect('users:profile', username=user.username)
+            # Rediriger vers le profil en s'assurant que le username existe
+            if user.username and user.username.strip():
+                try:
+                    # Vérifier que l'utilisateur existe avec ce username avant de rediriger
+                    User.objects.get(username=user.username)
+                    return redirect('users:profile', username=user.username)
+                except User.DoesNotExist:
+                    # Si l'utilisateur n'est pas trouvé, rafraîchir et réessayer
+                    user.refresh_from_db()
+                    if user.username:
+                        return redirect('users:profile', username=user.username)
+                    else:
+                        messages.warning(request, 'Votre profil a été mis à jour, mais il manque un nom d\'utilisateur. Veuillez contacter le support.')
+                        return redirect('forum:feed')
             else:
+                # Fallback si le username est toujours vide
+                messages.warning(request, 'Votre profil a été mis à jour, mais il manque un nom d\'utilisateur. Veuillez contacter le support.')
                 return redirect('forum:feed')
             
         except Exception as e:
+            import traceback
+            print(f"Erreur lors de la mise à jour du profil: {str(e)}")
+            print(traceback.format_exc())
             messages.error(request, f'Erreur lors de la mise à jour du profil: {str(e)}')
             return render(request, 'users/edit_profile.html', {'user': user})
     
-    return render(request, 'users/edit_profile.html', {'user': request.user})
+    # S'assurer que l'utilisateur a un username avant d'afficher le formulaire
+    # Rafraîchir depuis la base de données
+    user.refresh_from_db()
+    print(f"DEBUG edit_profile GET - User ID: {user.id}, Username: '{user.username}', Email: '{user.email}'")
+    
+    if not user.username or user.username.strip() == '':
+        print(f"DEBUG - Génération d'un username pour l'utilisateur {user.id}")
+        # Générer un username si nécessaire
+        import re
+        if user.email:
+            base_username = user.email.split('@')[0]
+            # Nettoyer le username (enlever caractères spéciaux)
+            base_username = re.sub(r'[^a-zA-Z0-9_]', '', base_username)
+            if not base_username:
+                base_username = 'user'
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exclude(id=user.id).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            user.username = username
+            user.save()
+        elif user.phone:
+            base_username = f"user_{user.phone.replace(' ', '').replace('+', '').replace('-', '')}"
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exclude(id=user.id).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            user.username = username
+            user.save()
+        else:
+            user.username = f"user_{user.id}"
+            user.save()
+    
+    user.refresh_from_db()
+    print(f"DEBUG edit_profile GET final - User ID: {user.id}, Username: '{user.username}'")
+    return render(request, 'users/edit_profile.html', {'user': user})
 
 
 @login_required

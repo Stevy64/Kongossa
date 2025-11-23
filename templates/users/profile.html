@@ -107,7 +107,8 @@
                             <span class="sm:hidden">Modifier</span>
                     </a>
                     <button 
-                        onclick="shareProfile('{{ profile_user.username }}')"
+                        data-username="{{ profile_user.username|escapejs }}"
+                        onclick="shareProfile(this.dataset.username)"
                         class="btn-pill bg-brand-surface border border-white/20 text-white font-semibold hover:scale-105 transition-all flex items-center space-x-2 text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5"
                         title="Partager le profil"
                     >
@@ -118,7 +119,8 @@
                     </button>
                 {% else %}
                     <button 
-                        onclick="toggleFollow('{{ profile_user.username }}')"
+                        data-username="{{ profile_user.username }}"
+                        onclick="toggleFollow(this.dataset.username)"
                         id="follow-btn"
                             class="btn-pill {% if is_following %}bg-brand-surface border border-white/20{% else %}bg-gradient-to-r from-blue-600 to-green-600{% endif %} text-white font-semibold hover:scale-105 transition-all flex items-center space-x-2 text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5"
                     >
@@ -148,7 +150,8 @@
                                     <span class="sm:hidden">En cours</span>
                                 </button>
                                 <button 
-                                    onclick="cancelFriendRequest('{{ profile_user.username }}')"
+                                    data-username="{{ profile_user.username }}"
+                                    onclick="cancelFriendRequest(this.dataset.username)"
                                     class="btn-pill bg-brand-surface border border-white/20 text-white font-semibold hover:scale-105 transition-all flex items-center space-x-2 text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5"
                                 >
                                     <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -181,7 +184,8 @@
                             </div>
                         {% else %}
                             <button 
-                                onclick="sendFriendRequest('{{ profile_user.username }}')"
+                                data-username="{{ profile_user.username }}"
+                                onclick="sendFriendRequest(this.dataset.username)"
                                 class="btn-pill bg-gradient-gold text-brand-primary font-semibold shadow-gold hover:scale-105 transition-all flex items-center space-x-2 text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5"
                             >
                                 <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -192,7 +196,8 @@
                             </button>
                         {% endif %}
                         <button 
-                            onclick="shareProfile('{{ profile_user.username }}')"
+                            data-username="{{ profile_user.username }}"
+                            onclick="shareProfile(this.dataset.username)"
                             class="btn-pill bg-brand-surface border border-white/20 text-white font-semibold hover:scale-105 transition-all flex items-center space-x-2 text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5"
                             title="Partager le profil"
                         >
@@ -435,7 +440,10 @@
         btn.disabled = true;
         text.textContent = '...';
         
-        fetch(`{% url 'users:toggle_follow' 'USERNAME' %}`.replace('USERNAME', username), {
+        // Le username vient de dataset qui décode automatiquement les caractères HTML
+        // On doit juste encoder pour l'URL
+        const followUrl = `{% url 'users:toggle_follow' 'USERNAME' %}`.replace('USERNAME', encodeURIComponent(username));
+        fetch(followUrl, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
@@ -489,7 +497,8 @@
             btn.querySelector('span').textContent = '...';
         }
         
-        fetch(`{% url 'users:send_friend_request' 'USERNAME' %}`.replace('USERNAME', username), {
+        const friendRequestUrl = `{% url 'users:send_friend_request' 'USERNAME' %}`.replace('USERNAME', encodeURIComponent(username));
+        fetch(friendRequestUrl, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
@@ -612,7 +621,8 @@
             btn.querySelector('span').textContent = '...';
         }
         
-        fetch(`{% url 'users:cancel_friend_request' 'USERNAME' %}`.replace('USERNAME', username), {
+        const cancelRequestUrl = `{% url 'users:cancel_friend_request' 'USERNAME' %}`.replace('USERNAME', encodeURIComponent(username));
+        fetch(cancelRequestUrl, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
@@ -673,7 +683,9 @@
     
     // Fonction pour partager un profil
     async function shareProfile(username) {
-        const shareUrl = `${window.location.origin}{% url 'users:profile' 'USERNAME' %}`.replace('USERNAME', username);
+        // Encoder le username pour l'URL
+        const encodedUsername = encodeURIComponent(username);
+        const shareUrl = `${window.location.origin}{% url 'users:profile' 'USERNAME' %}`.replace('USERNAME', encodedUsername);
         const shareTitle = `Profil de ${username} sur Kongossa`;
         const shareText = `Découvrez le profil de ${username} sur Kongossa !`;
         
