@@ -590,17 +590,6 @@
         <!-- Header de groupe -->
         <header class="glass-card tab-bar border-b border-white/20 p-2 md:p-4 flex items-center justify-between gap-2 flex-shrink-0">
             <div class="flex items-center space-x-2 md:space-x-3 min-w-0 flex-1">
-                <!-- Bouton retour au feed du groupe -->
-                <a 
-                    href="{% url 'forum:group_feed' group.id %}"
-                    class="text-white hover:bg-white/20 p-1.5 md:p-2 rounded-lg transition-colors flex-shrink-0"
-                    title="Retour au feed du groupe"
-                >
-                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                    </svg>
-                </a>
-                
                 <!-- Bouton menu mobile -->
                 <button 
                     @click="sidebarExpanded = !sidebarExpanded"
