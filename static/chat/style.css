@@ -1,0 +1,715 @@
+/* ============================================
+   Telegram-like Chat Styles - Refactored
+   ============================================ */
+
+/* Custom Scrollbar - Telegram Style */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Telegram Chat Container */
+.telegram-chat-container {
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Sidebar Styles */
+.telegram-sidebar {
+    min-width: 0;
+    z-index: 30;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+@media (max-width: 1023px) {
+    .telegram-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 50;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+    }
+    
+    .telegram-sidebar.translate-x-0 {
+        transform: translateX(0);
+    }
+}
+
+/* Sidebar Header */
+.telegram-sidebar-header {
+    min-height: 60px;
+}
+
+/* Chat Logo Link - Modern Design */
+.chat-logo-link {
+    display: inline-block;
+    text-decoration: none;
+    outline: none;
+}
+
+.chat-logo-link:focus {
+    outline: 2px solid rgba(51, 144, 236, 0.5);
+    outline-offset: 2px;
+    border-radius: 50%;
+}
+
+.chat-logo-link .w-10 {
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-logo-link:hover .w-10 {
+    box-shadow: 0 4px 20px rgba(51, 144, 236, 0.4), 0 0 0 4px rgba(51, 144, 236, 0.1);
+    transform: scale(1.05);
+}
+
+.chat-logo-link:active .w-10 {
+    transform: scale(0.95);
+}
+
+/* Conversations List */
+.telegram-conversations-list {
+    scroll-behavior: smooth;
+}
+
+/* Chat Main Area */
+.telegram-chat-main {
+    min-width: 0;
+    position: relative;
+}
+
+/* Chat Header */
+.telegram-chat-header {
+    min-height: 60px;
+    flex-shrink: 0;
+}
+
+/* Messages Area */
+.telegram-messages-area {
+    scroll-behavior: smooth;
+    padding-bottom: 1rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+@media (min-width: 768px) {
+    .telegram-messages-area {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+}
+
+/* ============================================
+   MESSAGE GROUPS - WhatsApp/Telegram Style
+   ============================================ */
+.message-group {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0.5rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0 0.25rem;
+}
+
+.message-group.sent {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message-group.received {
+    justify-content: flex-start;
+}
+
+/* Message Avatar (only for received messages) */
+.message-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #3390EC, #5EB5F7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: white;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+
+.message-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Messages Container in Group */
+.message-group .flex.flex-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    max-width: calc(100% - 3rem);
+    min-width: 0;
+}
+
+.message-group.sent .flex.flex-col {
+    align-items: flex-end;
+}
+
+.message-group.received .flex.flex-col {
+    align-items: flex-start;
+}
+
+/* ============================================
+   MESSAGE BUBBLES - Same style as main chat (feed)
+   ============================================ */
+.message-bubble {
+    position: relative;
+    max-width: 75%;
+    min-width: 3rem;
+    word-wrap: break-word;
+    word-break: break-word;
+    animation: messageSlideIn 0.2s ease-out;
+    display: inline-block;
+    line-height: 1.4;
+    font-size: 0.9375rem;
+}
+
+/* Message envoyé - Style WhatsApp/Telegram (same as feed) */
+.message-sent,
+.message-bubble.sent,
+.message-bubble.message-out {
+    margin-left: auto;
+    margin-right: 0 !important;
+    background: linear-gradient(135deg, #3390EC 0%, #5EB5F7 100%);
+    color: white;
+    border-radius: 7.5px 7.5px 0 7.5px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    font-weight: 400;
+    position: relative;
+    align-self: flex-end;
+    padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+    margin-bottom: 0.125rem;
+}
+
+/* Message reçu - Style WhatsApp/Telegram (same as feed) */
+.message-received,
+.message-bubble.received,
+.message-bubble.message-in {
+    margin-left: 0 !important;
+    margin-right: auto;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #E4E6EB;
+    border-radius: 0 7.5px 7.5px 7.5px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-weight: 400;
+    position: relative;
+    align-self: flex-start;
+    padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+    margin-bottom: 0.125rem;
+}
+
+/* First message in group - more rounded */
+.message-group .flex.flex-col > .message-bubble:first-child {
+    border-radius: 7.5px 7.5px 0 7.5px;
+}
+
+.message-group.sent .flex.flex-col > .message-bubble:first-child {
+    border-radius: 7.5px 7.5px 0 7.5px;
+}
+
+.message-group.received .flex.flex-col > .message-bubble:first-child {
+    border-radius: 0 7.5px 7.5px 7.5px;
+}
+
+/* Last message in group - less rounded bottom */
+.message-group .flex.flex-col > .message-bubble:last-child {
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
+}
+
+.message-group.sent .flex.flex-col > .message-bubble:last-child {
+    border-bottom-right-radius: 2px;
+    border-bottom-left-radius: 7.5px;
+}
+
+.message-group.received .flex.flex-col > .message-bubble:last-child {
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 7.5px;
+}
+
+/* Single message (not in group) */
+.message-bubble:only-child {
+    border-radius: 7.5px;
+}
+
+.message-bubble.sent:only-child,
+.message-bubble.message-out:only-child {
+    border-radius: 7.5px 7.5px 0 7.5px;
+}
+
+.message-bubble.received:only-child,
+.message-bubble.message-in:only-child {
+    border-radius: 0 7.5px 7.5px 7.5px;
+}
+
+/* Message Content */
+.message-content {
+    padding: 0;
+    line-height: 1.4;
+    font-size: 0.9375rem;
+    word-wrap: break-word;
+    word-break: break-word;
+    margin-bottom: 0.125rem;
+}
+
+/* Message Sender Name (for group messages) */
+.message-sender-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.85;
+    margin-bottom: 0.25rem;
+    color: inherit;
+}
+
+.message-sender-name a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.message-sender-name a:hover {
+    text-decoration: underline;
+    opacity: 1;
+}
+
+.message-content p {
+    margin: 0;
+    word-break: break-word;
+}
+
+.message-content p + p {
+    margin-top: 0.25rem;
+}
+
+/* Message Media */
+.message-media {
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.25rem 0;
+    max-width: 100%;
+}
+
+.message-media img,
+.message-media video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+/* Message File */
+.message-file {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    margin: 0.25rem 0;
+    gap: 0.5rem;
+}
+
+.message-file-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.message-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-file-name {
+    font-weight: 500;
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.message-file-size {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 0.125rem;
+}
+
+/* ============================================
+   MESSAGE FOOTER - Timestamp & Read Receipt
+   ============================================ */
+.message-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    margin-top: 0.125rem;
+    padding-top: 0;
+    font-size: 0.6875rem;
+    opacity: 0.75;
+    line-height: 1;
+}
+
+/* Timestamp */
+.message-time {
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.message-bubble.sent .message-time,
+.message-bubble.message-out .message-time {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.message-bubble.received .message-time,
+.message-bubble.message-in .message-time {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Read Receipt - Double Check */
+.read-receipt {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.125rem;
+    opacity: 0.7;
+}
+
+.read-receipt svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.read-receipt.single {
+    opacity: 0.6;
+}
+
+.read-receipt.double {
+    opacity: 1;
+}
+
+.read-receipt svg:last-child {
+    margin-left: -0.5rem;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   TIMESTAMP SEPARATOR
+   ============================================ */
+.timestamp-separator {
+    text-align: center;
+    margin: 1rem 0;
+    position: relative;
+}
+
+.timestamp-separator::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.timestamp-separator span {
+    background: rgba(14, 22, 33, 0.8);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 768px) {
+    .message-bubble {
+        max-width: 85%;
+        padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+    }
+    
+    .message-group {
+        padding: 0 0.125rem;
+    }
+    
+    .telegram-sidebar {
+        width: 100% !important;
+        max-width: 320px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .message-bubble {
+        max-width: 70%;
+    }
+}
+
+/* ============================================
+   INPUT AREA
+   ============================================ */
+.telegram-input-area {
+    min-height: 70px;
+    flex-shrink: 0;
+}
+
+/* Auto-expanding Textarea */
+.telegram-textarea {
+    resize: none;
+    min-height: 2.5rem;
+    max-height: 8rem;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+
+/* Input Actions */
+.input-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.input-action-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.input-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.input-action-btn:active {
+    transform: scale(0.95);
+}
+
+/* Send Button */
+.send-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3390EC, #5EB5F7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(51, 144, 236, 0.3);
+}
+
+.send-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(51, 144, 236, 0.4);
+}
+
+.send-button:active {
+    transform: scale(0.95);
+}
+
+.send-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   SIDEBAR ITEMS
+   ============================================ */
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item.active {
+    background: rgba(51, 144, 236, 0.15);
+    border-left-color: #3390EC;
+}
+
+.sidebar-item-avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.sidebar-item-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Online Status Indicator */
+.online-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: #10B981;
+    border: 2px solid #17212B;
+}
+
+/* Unread Badge */
+.unread-badge {
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    border-radius: 0.625rem;
+    background: linear-gradient(135deg, #3390EC, #5EB5F7);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+}
+
+/* Sidebar Item Content */
+.sidebar-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.sidebar-item-name {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: #E4E6EB;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-item-time {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    flex-shrink: 0;
+}
+
+.sidebar-item-preview {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sidebar-item-preview svg {
+    flex-shrink: 0;
+}
+
+/* ============================================
+   SMOOTH TRANSITIONS
+   ============================================ */
+* {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Focus Styles */
+input:focus,
+textarea:focus {
+    outline: none;
+}
+
+/* Selection */
+::selection {
+    background: rgba(51, 144, 236, 0.3);
+    color: white;
+}

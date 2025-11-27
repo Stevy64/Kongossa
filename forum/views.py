@@ -119,28 +119,32 @@ def topics_list(request):
     show_groups = request.GET.get('show', '') == 'groups' or search_query
     
     # Récupérer les groupes auxquels l'utilisateur est déjà abonné ou membre
+    # ET aussi les groupes créés par l'utilisateur (pour s'assurer qu'ils apparaissent toujours)
     subscribed_group_ids = set()
     user_subscribed_group_ids = set()
+    created_group_ids = set()
     if request.user.is_authenticated:
         try:
             subscribed_group_ids = set(request.user.subscribed_groups.values_list('id', flat=True))
             user_subscribed_group_ids = set(request.user.forum_groups.values_list('id', flat=True))
-            # Combiner les deux sets
-            user_subscribed_group_ids = subscribed_group_ids | user_subscribed_group_ids
+            created_group_ids = set(request.user.created_groups.values_list('id', flat=True))
+            # Combiner les trois sets (abonnés, membres, et créés)
+            user_subscribed_group_ids = subscribed_group_ids | user_subscribed_group_ids | created_group_ids
         except Exception:
             subscribed_group_ids = set()
             user_subscribed_group_ids = set()
+            created_group_ids = set()
     
-    # Toujours afficher les groupes auxquels l'utilisateur est abonné/membre
+    # Toujours afficher les groupes auxquels l'utilisateur est abonné/membre/créateur
     # Et aussi les groupes publics si recherche ou show_groups
     if show_groups or search_query:
-        # Récupérer les groupes publics OU les groupes auxquels l'utilisateur est abonné/membre
+        # Récupérer les groupes publics OU les groupes auxquels l'utilisateur est abonné/membre/créateur
         groups = Group.objects.filter(
-            Q(is_public=True) | Q(id__in=user_subscribed_group_ids)
+            Q(is_public=True) | Q(id__in=user_subscribed_group_ids) | Q(creator=request.user)
         ).annotate(
             members_count=Count('members'),
             subscribers_count=Count('subscribers')
-        )
+        ).distinct()
         
         # Filtrer par recherche
         if search_query:
@@ -156,18 +160,18 @@ def topics_list(request):
         
         groups = groups.order_by('-subscribers_count', '-members_count', '-created_at')
     else:
-        # Si pas de recherche, afficher uniquement les groupes auxquels l'utilisateur est abonné/membre
-        if user_subscribed_group_ids:
-            groups = Group.objects.filter(
-                id__in=user_subscribed_group_ids
-            ).annotate(
-                members_count=Count('members'),
-                subscribers_count=Count('subscribers')
-            ).order_by('-updated_at')
+        # Si pas de recherche, afficher uniquement les groupes auxquels l'utilisateur est abonné/membre/créateur
+        # Toujours inclure les groupes créés par l'utilisateur même s'ils ne sont pas dans user_subscribed_group_ids
+        groups = Group.objects.filter(
+            Q(id__in=user_subscribed_group_ids) | Q(creator=request.user)
+        ).annotate(
+            members_count=Count('members'),
+            subscribers_count=Count('subscribers')
+        ).distinct().order_by('-updated_at')
+        
+        if groups.exists():
             # Forcer show_groups à True pour afficher les groupes
             show_groups = True
-        else:
-            groups = Group.objects.none()
     
     # Récupérer tous les topics pour le filtre
     all_topics = Topic.objects.filter(is_active=True).order_by('name')
@@ -186,44 +190,135 @@ def topics_list(request):
 
 @login_required
 def create_topic(request):
-    """Créer un nouveau sujet de discussion"""
+    """Créer un nouveau sujet de discussion ou un groupe"""
+    # Récupérer tous les topics actifs pour le formulaire de création de groupe
+    all_topics = Topic.objects.filter(is_active=True).order_by('name')
+    
     if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        description = request.POST.get('description', '').strip()
-        icon = request.POST.get('icon', '💬').strip()
-        color = request.POST.get('color', '#9333ea').strip()
+        # Vérifier si c'est une création de groupe ou de topic
+        form_type = request.POST.get('form_type', 'topic')
         
-        if not name:
-            messages.error(request, 'Le nom du sujet est requis')
-            return redirect('forum:topics_list')
-        
-        # Générer le slug à partir du nom
-        from django.utils.text import slugify
-        slug = slugify(name)
-        
-        # Vérifier si le slug existe déjà
-        if Topic.objects.filter(slug=slug).exists():
-            messages.error(request, 'Un sujet avec ce nom existe déjà')
-            return redirect('forum:topics_list')
-        
-        try:
-            topic = Topic.objects.create(
-                name=name,
-                slug=slug,
-                description=description,
-                icon=icon,
-                color=color,
-                creator=request.user,
-                is_active=True
-            )
-            messages.success(request, f'Sujet "{topic.name}" créé avec succès!')
-            return redirect('forum:topic_detail', slug=topic.slug)
-        except Exception as e:
-            messages.error(request, f'Erreur lors de la création du sujet: {str(e)}')
-            return redirect('forum:topics_list')
+        if form_type == 'group':
+            # Création d'un groupe
+            topic_slug = request.POST.get('topic', '').strip()
+            name = request.POST.get('name', '').strip()
+            description = request.POST.get('description', '').strip()
+            image = request.FILES.get('image')
+            is_public = request.POST.get('is_public', 'on') == 'on'
+            
+            # Vérifier si l'utilisateur veut créer un nouveau thème
+            create_new_topic = request.POST.get('create_new_topic') == 'on'
+            new_topic_name = request.POST.get('new_topic_name', '').strip()
+            new_topic_description = request.POST.get('new_topic_description', '').strip()
+            icon = request.POST.get('icon', '💬').strip()
+            color = request.POST.get('color', '#9333ea').strip()
+            
+            # Si création d'un nouveau thème
+            if create_new_topic:
+                if not new_topic_name:
+                    messages.error(request, 'Le nom du nouveau thème est requis')
+                    return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+                
+                # Générer le slug à partir du nom
+                from django.utils.text import slugify
+                new_topic_slug = slugify(new_topic_name)
+                
+                # Vérifier si le slug existe déjà
+                if Topic.objects.filter(slug=new_topic_slug).exists():
+                    messages.error(request, 'Un thème avec ce nom existe déjà')
+                    return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+                
+                try:
+                    # Créer le nouveau thème
+                    topic = Topic.objects.create(
+                        name=new_topic_name,
+                        slug=new_topic_slug,
+                        description=new_topic_description,
+                        icon=icon,
+                        color=color,
+                        creator=request.user,
+                        is_active=True
+                    )
+                    messages.success(request, f'Thème "{topic.name}" créé avec succès!')
+                except Exception as e:
+                    messages.error(request, f'Erreur lors de la création du thème: {str(e)}')
+                    return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+            else:
+                # Utiliser le thème sélectionné
+                if not topic_slug:
+                    messages.error(request, 'Vous devez sélectionner un thème pour créer un groupe')
+                    return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+                
+                try:
+                    topic = Topic.objects.get(slug=topic_slug, is_active=True)
+                except Topic.DoesNotExist:
+                    messages.error(request, 'Le thème sélectionné n\'existe pas')
+                    return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+            
+            if not name:
+                messages.error(request, 'Le nom du groupe est requis')
+                return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+            
+            try:
+                group = Group.objects.create(
+                    name=name,
+                    description=description,
+                    topic=topic,
+                    creator=request.user,
+                    image=image,
+                    is_public=is_public,
+                    requires_approval=True
+                )
+                
+                # Ajouter le créateur comme membre ET abonné automatiquement (propriétaire)
+                group.members.add(request.user)
+                group.subscribers.add(request.user)
+                
+                group.refresh_from_db()
+                messages.success(request, f'Groupe "{group.name}" créé avec succès!')
+                return redirect('forum:group_feed', group_id=group.id)
+            except Exception as e:
+                import traceback
+                messages.error(request, f'Erreur lors de la création du groupe: {str(e)}')
+                return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+        else:
+            # Création d'un topic (code existant)
+            name = request.POST.get('name', '').strip()
+            description = request.POST.get('description', '').strip()
+            icon = request.POST.get('icon', '💬').strip()
+            color = request.POST.get('color', '#9333ea').strip()
+            
+            if not name:
+                messages.error(request, 'Le nom du sujet est requis')
+                return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+            
+            # Générer le slug à partir du nom
+            from django.utils.text import slugify
+            slug = slugify(name)
+            
+            # Vérifier si le slug existe déjà
+            if Topic.objects.filter(slug=slug).exists():
+                messages.error(request, 'Un sujet avec ce nom existe déjà')
+                return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
+            
+            try:
+                topic = Topic.objects.create(
+                    name=name,
+                    slug=slug,
+                    description=description,
+                    icon=icon,
+                    color=color,
+                    creator=request.user,
+                    is_active=True
+                )
+                messages.success(request, f'Sujet "{topic.name}" créé avec succès!')
+                return redirect('forum:topic_detail', slug=topic.slug)
+            except Exception as e:
+                messages.error(request, f'Erreur lors de la création du sujet: {str(e)}')
+                return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
     
     # GET request - afficher le formulaire
-    return render(request, 'forum/create_topic.html')
+    return render(request, 'forum/create_topic.html', {'all_topics': all_topics})
 
 
 @login_required
@@ -435,10 +530,10 @@ def post_detail(request, post_id):
 
 @login_required
 def groups_list(request, topic_slug=None):
-    """Liste des groupes de discussion - Groupes auxquels l'utilisateur est abonné"""
-    # Afficher uniquement les groupes auxquels l'utilisateur est abonné ou membre
+    """Liste des groupes de discussion - Groupes auxquels l'utilisateur est abonné, membre ou créateur"""
+    # Afficher les groupes auxquels l'utilisateur est abonné, membre OU créateur
     groups = Group.objects.filter(
-        Q(subscribers=request.user) | Q(members=request.user)
+        Q(subscribers=request.user) | Q(members=request.user) | Q(creator=request.user)
     ).annotate(
         members_count=Count('members'),
         subscribers_count=Count('subscribers')
@@ -533,10 +628,30 @@ def group_detail(request, group_id):
     
     messages_list = group.messages.all()[:50]  # Derniers 50 messages
     
-    # Récupérer les données de la sidebar (conversations et groupes)
+    # Récupérer les données de la sidebar (uniquement les groupes, pas les conversations personnelles)
     try:
-        from chat.views import get_chat_sidebar_data
-        sidebar_data = get_chat_sidebar_data(request.user)
+        from forum.models import GroupMessage
+        from django.db.models import Count
+        
+        # Récupérer uniquement les groupes où l'utilisateur est membre
+        groups = Group.objects.filter(members=request.user).annotate(
+            members_count=Count('members')
+        ).order_by('-updated_at')
+        
+        groups_data = []
+        for g in groups:
+            last_message = g.messages.last() if hasattr(g, 'messages') else None
+            groups_data.append({
+                'group': g,
+                'last_message': last_message,
+                'unread_count': 0,  # TODO: Implémenter le comptage des messages non lus pour les groupes
+                'type': 'group',
+            })
+        
+        sidebar_data = {
+            'conversations': [],
+            'all_items': groups_data,  # Uniquement les groupes
+        }
     except ImportError:
         sidebar_data = {'conversations': [], 'all_items': []}
     
@@ -566,15 +681,19 @@ def create_group(request, topic_slug):
         messages.error(request, 'Le nom du groupe est requis')
         return redirect('forum:topic_detail', slug=topic_slug)
     
+    # Tous les groupes nécessitent une approbation pour les autres utilisateurs
     group = Group.objects.create(
         name=name,
         description=description,
         topic=topic,
         creator=request.user,
         image=image,
-        is_public=is_public
+        is_public=is_public,
+        requires_approval=True  # Tous les groupes nécessitent une approbation
     )
-    group.members.add(request.user)  # Ajouter le créateur comme membre
+    # Ajouter le créateur comme membre ET abonné automatiquement (propriétaire)
+    group.members.add(request.user)
+    group.subscribers.add(request.user)
     
     messages.success(request, f'Groupe "{group.name}" créé avec succès!')
     return redirect('forum:group_detail', group_id=group.id)
@@ -630,8 +749,9 @@ def approve_group_request(request, request_id):
         messages.info(request, 'Cette demande a déjà été traitée')
         return redirect('forum:manage_group', group_id=group.id)
     
-    # Ajouter l'utilisateur au groupe
+    # Ajouter l'utilisateur au groupe comme membre ET abonné après approbation
     group.members.add(group_request.user)
+    group.subscribers.add(group_request.user)
     group_request.status = 'approved'
     group_request.save()
     
@@ -793,6 +913,50 @@ def send_group_message(request, group_id):
             'file': message.file.url if message.file else None,
             'file_name': message.file_name,
         }
+    })
+
+
+@login_required
+def get_new_group_messages(request, group_id):
+    """Récupérer les nouveaux messages de groupe depuis un certain ID (pour polling)"""
+    group = get_object_or_404(Group, id=group_id)
+    
+    if not group.is_member(request.user):
+        return JsonResponse({'error': 'Vous devez être membre pour voir les messages'}, status=403)
+    
+    last_message_id = request.GET.get('last_message_id')
+    
+    if last_message_id:
+        try:
+            last_message_id = int(last_message_id)
+            messages_query = group.messages.filter(id__gt=last_message_id)
+        except ValueError:
+            messages_query = group.messages.all()
+    else:
+        # Si pas de last_message_id, retourner les 10 derniers messages
+        messages_query = group.messages.all()
+    
+    messages = messages_query.order_by('created_at')
+    
+    messages_data = []
+    for msg in messages:
+        messages_data.append({
+            'id': msg.id,
+            'content': msg.content,
+            'sender': msg.sender.username,
+            'sender_id': msg.sender.id,
+            'sender_avatar': msg.sender.avatar.url if msg.sender.avatar else None,
+            'created_at': msg.created_at.isoformat(),
+            'image': msg.image.url if msg.image else None,
+            'video': msg.video.url if msg.video else None,
+            'audio': msg.audio.url if msg.audio else None,
+            'file': msg.file.url if msg.file else None,
+            'file_name': msg.file_name,
+        })
+    
+    return JsonResponse({
+        'messages': messages_data,
+        'count': len(messages_data)
     })
 
 
@@ -1007,70 +1171,58 @@ def toggle_topic_subscribe(request, slug):
 @login_required
 @require_http_methods(["POST"])
 def toggle_group_subscribe(request, group_id):
-    """S'abonner/Se désabonner d'un groupe"""
+    """S'abonner/Se désabonner d'un groupe - Le créateur ne peut pas se désabonner"""
     group = get_object_or_404(Group, id=group_id)
     
-    # Si le groupe nécessite une approbation, utiliser le système de demande
-    if group.requires_approval:
-        if group.is_subscribed(request.user) or group.is_member(request.user):
-            # Se désabonner
-            group.subscribers.remove(request.user)
-            is_subscribed = False
-            message = f'Vous vous êtes désabonné du groupe "{group.name}"'
-        else:
-            # Créer une demande d'accès
-            request_obj, created = GroupRequest.objects.get_or_create(
-                group=group,
-                user=request.user,
-                defaults={'message': '', 'status': 'pending'}
-            )
-            
-            if created:
-                # Créer une notification pour le créateur
-                from notifications.models import Notification
-                Notification.objects.create(
-                    user=group.creator,
-                    notification_type='group_request',
-                    title='Nouvelle demande d\'accès',
-                    message=f'{request.user.username} demande à rejoindre le groupe "{group.name}"',
-                    related_object_id=group.id
-                )
-                message = f'Votre demande d\'accès au groupe "{group.name}" a été envoyée'
-            else:
-                message = 'Vous avez déjà une demande en attente pour ce groupe'
-            
-            is_subscribed = False
-            subscribers_count = group.subscribers.count()
-            
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'is_subscribed': is_subscribed,
-                    'subscribers_count': subscribers_count,
-                    'message': message,
-                    'requires_approval': True
-                })
-            
-            messages.success(request, message)
-            return redirect('forum:topics_list')
+    # Le créateur ne peut pas se désabonner (il est propriétaire)
+    if group.creator == request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'En tant que créateur, vous ne pouvez pas vous désabonner de votre groupe'
+            }, status=400)
+        messages.info(request, 'En tant que créateur, vous ne pouvez pas vous désabonner de votre groupe')
+        return redirect('forum:topics_list')
+    
+    # Tous les groupes nécessitent une approbation pour les autres utilisateurs
+    if group.is_subscribed(request.user) or group.is_member(request.user):
+        # Se désabonner (retirer des membres et abonnés)
+        group.subscribers.remove(request.user)
+        if group.is_member(request.user):
+            group.members.remove(request.user)
+        is_subscribed = False
+        message = f'Vous vous êtes désabonné du groupe "{group.name}"'
     else:
-        # Groupe public, abonnement direct
-        if group.subscribers.filter(id=request.user.id).exists():
-            # Se désabonner
-            group.subscribers.remove(request.user)
-            # Retirer aussi des membres si présent
-            if group.is_member(request.user):
-                group.members.remove(request.user)
-            is_subscribed = False
-            message = f'Vous vous êtes désabonné du groupe "{group.name}"'
+        # Créer une demande d'accès (obligatoire pour tous les groupes)
+        request_obj, created = GroupRequest.objects.get_or_create(
+            group=group,
+            user=request.user,
+            defaults={'message': '', 'status': 'pending'}
+        )
+        
+        if created:
+            # Créer une notification pour le créateur
+            from notifications.models import Notification
+            from django.urls import reverse
+            related_url = reverse('forum:group_detail', kwargs={'group_id': group.id})
+            Notification.create_notification(
+                user=group.creator,
+                notification_type='group_request',
+                title='Nouvelle demande d\'accès',
+                message=f'{request.user.username} demande à rejoindre le groupe "{group.name}"',
+                related_user=request.user,
+                related_url=related_url
+            )
+            message = f'Votre demande d\'accès au groupe "{group.name}" a été envoyée. Vous recevrez une notification lorsque votre demande sera approuvée.'
         else:
-            # S'abonner
-            group.subscribers.add(request.user)
-            # Ajouter aussi aux membres pour l'accès
-            if not group.is_member(request.user):
-                group.members.add(request.user)
-            is_subscribed = True
-            message = f'Vous vous êtes abonné au groupe "{group.name}"'
+            if request_obj.status == 'pending':
+                message = 'Vous avez déjà une demande en attente pour ce groupe'
+            elif request_obj.status == 'rejected':
+                message = 'Votre demande d\'accès a été rejetée. Vous pouvez créer une nouvelle demande.'
+            else:
+                message = 'Vous êtes déjà membre de ce groupe'
+        
+        is_subscribed = False
     
     subscribers_count = group.subscribers.count()
     
@@ -1079,7 +1231,8 @@ def toggle_group_subscribe(request, group_id):
             'success': True,
             'is_subscribed': is_subscribed,
             'subscribers_count': subscribers_count,
-            'message': message
+            'message': message,
+            'requires_approval': True
         })
     
     messages.success(request, message)

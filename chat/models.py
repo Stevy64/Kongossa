@@ -2,15 +2,13 @@
 Modèles pour le chat en temps réel Kongossa
 """
 from django.db import models
-from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.utils import timezone
-
-User = get_user_model()
 
 
 class Conversation(models.Model):
     """Modèle pour les conversations privées"""
-    participants = models.ManyToManyField(User, related_name='conversations')
+    participants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='conversations')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -30,7 +28,7 @@ class Conversation(models.Model):
 class Message(models.Model):
     """Modèle pour les messages"""
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField(blank=True)
     image = models.ImageField(upload_to='messages/', blank=True, null=True)
     video = models.FileField(upload_to='messages/videos/', blank=True, null=True, verbose_name="Vidéo")

@@ -1,0 +1,61 @@
+{% load chat_filters %}
+<a 
+    href="{% url 'chat:detail' conversation.id %}" 
+    class="sidebar-item {% if active %}active{% endif %}"
+    data-conversation-id="{{ conversation.id }}"
+>
+    <div class="sidebar-item-avatar">
+        {% if other_user.avatar %}
+            <img src="{{ other_user.avatar.url }}" alt="{{ other_user.username }}">
+        {% else %}
+            <div class="w-full h-full rounded-full bg-gradient-to-br from-telegram-blue to-telegram-blue-light flex items-center justify-center">
+                <span class="text-white text-sm font-semibold">{{ other_user.username|first|upper }}</span>
+            </div>
+        {% endif %}
+        <!-- Online indicator (à implémenter si nécessaire) -->
+        <span class="online-indicator"></span>
+    </div>
+    
+    <div class="sidebar-item-content">
+        <div class="sidebar-item-header">
+            <span class="sidebar-item-name">{{ other_user.get_full_name|default:other_user.username }}</span>
+            {% if last_message %}
+                <span class="sidebar-item-time">{{ last_message.created_at|format_chat_time }}</span>
+            {% endif %}
+        </div>
+        <div class="sidebar-item-preview">
+            {% if last_message %}
+                {% if last_message.image %}
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Photo</span>
+                {% elif last_message.video %}
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Vidéo</span>
+                {% elif last_message.audio %}
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                    </svg>
+                    <span>Audio</span>
+                {% elif last_message.file %}
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span>{{ last_message.file_name|default:"Fichier" }}</span>
+                {% else %}
+                    <span>{{ last_message.content|truncatewords:10 }}</span>
+                {% endif %}
+            {% else %}
+                <span class="text-telegram-text-secondary italic">Aucun message</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if unread_count > 0 %}
+        <span class="unread-badge">{{ unread_count }}</span>
+    {% endif %}
+</a>
+

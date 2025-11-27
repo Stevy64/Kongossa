@@ -1,18 +1,35 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load chat_filters %}
+
+<!-- Chat Styles -->
+<link rel="stylesheet" href="{% static 'chat/style.css' %}">
 
 {% block title %}{{ group.name }} - Kongossa{% endblock %}
 
 {% block extra_css %}
 <!-- Masquer les messages d'alerte dans la messagerie -->
 <style>
+    :root {
+        --group-color: {% if group.topic.color %}{{ group.topic.color }}{% else %}#9333ea{% endif %};
+        --group-color-light: {% if group.topic.color %}{{ group.topic.color }}{% else %}#a855f7{% endif %};
+        --group-color-shadow: {% if group.topic.color %}{{ group.topic.color }}80{% else %}rgba(147, 51, 234, 0.5){% endif %};
+        --group-color-shadow-hover: {% if group.topic.color %}{{ group.topic.color }}aa{% else %}rgba(147, 51, 234, 0.7){% endif %};
+    }
+    
     .fixed.top-4.right-4 {
         display: none !important;
     }
     
-    /* Dégradé bleu/vert pour le fond de messagerie de groupe avec animations */
+    /* Dégradé avec couleur contextuelle du groupe pour le fond de messagerie */
     .chat-bg-gradient {
-        background: linear-gradient(135deg, #1B263B 0%, #0D1B2A 25%, #1B263B 50%, #0D1B2A 75%, #1B263B 100%);
+        background: linear-gradient(135deg, 
+            {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}#9333ea{% endif %} 0%, 
+            {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}#a855f7{% endif %}dd 25%, 
+            {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}#9333ea{% endif %}aa 50%,
+            {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}#a855f7{% endif %}dd 75%,
+            {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}#9333ea{% endif %} 100%
+        );
         background-size: 400% 400%;
         animation: chat-gradient-shift 20s ease infinite;
         min-height: 100vh;
@@ -27,9 +44,9 @@
         right: 0;
         bottom: 0;
         background: 
-            radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
-            radial-gradient(circle at 85% 75%, rgba(74, 222, 128, 0.1) 0%, transparent 45%),
-            radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+            radial-gradient(circle at 15% 25%, {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}rgba(147, 51, 234, 0.3){% endif %} 0%, transparent 45%),
+            radial-gradient(circle at 85% 75%, {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}rgba(168, 85, 247, 0.25){% endif %} 0%, transparent 45%),
+            radial-gradient(circle at 50% 50%, {% if group.banner_color %}{{ group.banner_color }}{% elif group.topic.color %}{{ group.topic.color }}{% else %}rgba(147, 51, 234, 0.15){% endif %} 0%, transparent 50%);
         animation: chat-pulse 10s ease-in-out infinite;
         pointer-events: none;
     }
@@ -65,6 +82,48 @@
         box-shadow: 0 4px 20px rgba(13, 27, 42, 0.4);
     }
     
+    /* Chat Popup Styles - Inspiré du feed */
+    #group-chat-popup-overlay {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    #group-chat-popup-container {
+        animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px) scale(0.95);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+    
+    /* Gradient pour le bouton FAB avec couleur du groupe */
+    .group-fab-gradient {
+        background: linear-gradient(135deg, var(--group-color, #9333ea) 0%, var(--group-color-light, #a855f7) 100%);
+    }
+    
+    .group-fab-shadow {
+        box-shadow: 0 8px 32px var(--group-color-shadow, rgba(147, 51, 234, 0.5));
+    }
+    
+    .group-fab-shadow:hover {
+        box-shadow: 0 12px 40px var(--group-color-shadow-hover, rgba(147, 51, 234, 0.7));
+    }
+    
     /* Tab bar plus foncée pour messagerie */
     .glass-card.tab-bar {
         background: rgba(13, 27, 42, 0.98);
@@ -72,6 +131,57 @@
         -webkit-backdrop-filter: blur(20px);
         border-top: 1px solid rgba(255, 255, 255, 0.15);
         box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Styles pour la barre d'input - Réduire la taille */
+    .glass-card.tab-bar {
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    @media (min-width: 768px) {
+        .glass-card.tab-bar {
+            padding: 0.75rem 1rem !important;
+        }
+    }
+    
+    /* Input de message - Taille normale */
+    #group-message-input {
+        min-height: 2.5rem !important;
+        max-height: 8rem !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+        line-height: 1.4 !important;
+    }
+    
+    @media (min-width: 768px) {
+        #group-message-input {
+            padding: 0.625rem 1rem !important;
+            font-size: 0.9375rem !important;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        /* Améliorer la zone de saisie sur mobile */
+        .glass-card.tab-bar {
+            padding: 0.75rem !important;
+        }
+        
+        /* Input plus grand et lisible sur mobile */
+        #group-message-input {
+            font-size: 16px !important; /* Évite le zoom automatique sur iOS */
+            min-height: 2.5rem !important;
+            max-height: 8rem !important;
+            padding: 0.625rem 0.875rem !important;
+            line-height: 1.4 !important;
+        }
+        
+        /* Boutons plus grands et espacés sur mobile */
+        .glass-card.tab-bar button,
+        .glass-card.tab-bar .flex button {
+            min-width: 2.5rem !important;
+            min-height: 2.5rem !important;
+            padding: 0.5rem !important;
+        }
     }
     
     /* Container de chat */
@@ -95,32 +205,77 @@
         flex: 1;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 1rem;
+        padding: 0.5rem 0.75rem;
         background: rgba(255, 255, 255, 0.05);
         min-height: 0;
     }
     
     @media (min-width: 768px) {
         .messages-container {
-            padding: 1.5rem;
+            padding: 0.75rem 1rem;
         }
+    }
+    
+    /* Bulles de message - S'assurer que les styles sont bien appliqués */
+    .message-bubble.sent,
+    .message-bubble.message-out {
+        background: linear-gradient(135deg, #3390EC 0%, #5EB5F7 100%) !important;
+        color: white !important;
+        border-radius: 7.5px 7.5px 0 7.5px !important;
+        margin-left: auto !important;
+        margin-right: 0 !important;
+        align-self: flex-end !important;
+    }
+    
+    .message-bubble.received,
+    .message-bubble.message-in {
+        background: rgba(255, 255, 255, 0.12) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        color: #E4E6EB !important;
+        border-radius: 0 7.5px 7.5px 7.5px !important;
+        margin-left: 0 !important;
+        margin-right: auto !important;
+        align-self: flex-start !important;
+    }
+    
+    /* Groupes de messages */
+    .message-group.sent {
+        justify-content: flex-end !important;
+        flex-direction: row-reverse !important;
+    }
+    
+    .message-group.received {
+        justify-content: flex-start !important;
+    }
+    
+    .message-group.sent .flex.flex-col {
+        align-items: flex-end !important;
+    }
+    
+    .message-group.received .flex.flex-col {
+        align-items: flex-start !important;
     }
     
     /* Bulles de message */
     .message-bubble {
-        max-width: 85%;
+        max-width: 95%;
         word-wrap: break-word;
         word-break: break-word;
-        margin-bottom: 0.75rem;
         animation: fadeIn 0.3s ease-in;
-        padding: 0.75rem 1rem;
-        line-height: 1.5;
+        line-height: 1.4;
+        font-size: 0.9375rem;
     }
     
     @media (min-width: 768px) {
     .message-bubble {
-        max-width: 70%;
-        padding: 0.875rem 1.25rem;
+        max-width: 90%;
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        .message-bubble {
+            max-width: 88%;
         }
     }
     
@@ -135,19 +290,19 @@
         }
     }
     
-    /* Message envoyé - Vert élégant avec meilleur contraste */
+    /* Message envoyé - Style WhatsApp/Telegram */
     .message-sent {
         margin-left: auto;
-        background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%);
-        color: #0D1B2A;
-        border-radius: 20px 20px 6px 20px;
-        box-shadow: 
-            0 4px 16px rgba(16, 185, 129, 0.35),
-            0 2px 8px rgba(16, 185, 129, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(74, 222, 128, 0.4);
+        margin-right: 0 !important;
+        background: linear-gradient(135deg, #3390EC 0%, #5EB5F7 100%);
+        color: white;
+        border-radius: 7.5px 7.5px 0 7.5px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         font-weight: 400;
         position: relative;
+        align-self: flex-end;
+        padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+        margin-bottom: 0.125rem;
     }
     
     .message-sent::before {
@@ -168,19 +323,20 @@
         color: #0D1B2A;
     }
     
-    /* Message reçu - Bleu élégant avec meilleur contraste */
+    /* Message reçu - Style WhatsApp/Telegram */
     .message-received {
+        margin-left: 0 !important;
         margin-right: auto;
-        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%);
-        color: #FFFFFF;
-        border-radius: 20px 20px 20px 6px;
-        box-shadow: 
-            0 4px 16px rgba(59, 130, 246, 0.35),
-            0 2px 8px rgba(59, 130, 246, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(96, 165, 250, 0.4);
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        color: #E4E6EB;
+        border-radius: 0 7.5px 7.5px 7.5px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         font-weight: 400;
         position: relative;
+        align-self: flex-start;
+        padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+        margin-bottom: 0.125rem;
     }
     
     .message-received::before {
@@ -324,86 +480,15 @@
                 </svg>
             </div>
             
-            <!-- Filtres (seulement quand développée) -->
-            <div class="mt-3 flex space-x-2" x-show="sidebarExpanded" x-transition>
-                <button 
-                    @click="filterType = 'all'"
-                    :class="filterType === 'all' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
-                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
-                >
-                    Tous
-                </button>
-                <button 
-                    @click="filterType = 'conversations'"
-                    :class="filterType === 'conversations' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
-                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
-                >
-                    Chats
-                </button>
-                <button 
-                    @click="filterType = 'groups'"
-                    :class="filterType === 'groups' ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'"
-                    class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
-                >
-                    Groupes
-                </button>
-            </div>
+            <!-- Filtres masqués - On affiche uniquement les groupes -->
         </div>
         
-        <!-- Liste des conversations et groupes -->
+        <!-- Liste des groupes uniquement (pas de conversations personnelles) -->
         <div class="flex-1 overflow-y-auto">
             {% if all_items %}
                 <div class="p-2 space-y-1">
                     {% for item in all_items %}
-                        {% if item.type == 'conversation' and item.other_user %}
-                            <div x-show="filterType === 'all' || filterType === 'conversations'">
-                            <!-- Conversation privée -->
-                            <a 
-                                href="{% url 'chat:detail' item.conversation.id %}" 
-                                class="block glass-card rounded-xl p-3 hover:bg-white/20 transition-all duration-200 group relative"
-                                :title="sidebarExpanded ? '' : '{{ item.other_user.username }}'"
-                            >
-                                <div class="flex items-center space-x-3">
-                                    <!-- Avatar avec statut -->
-                                    <div class="relative flex-shrink-0">
-                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
-                                            {% if item.other_user.avatar %}
-                                                <img src="{{ item.other_user.avatar.url }}" alt="{{ item.other_user.username }}" class="w-full h-full object-cover">
-                                            {% else %}
-                                                <span class="text-white text-lg font-bold">{{ item.other_user.username|first|upper }}</span>
-                                            {% endif %}
-                                        </div>
-                                        <!-- Pastille de statut -->
-                                        <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 border-2 border-white/20 rounded-full"></span>
-                                    </div>
-                                    
-                                    <!-- Informations (cachées quand minimisée) -->
-                                    <div class="flex-1 min-w-0" x-show="sidebarExpanded" x-transition>
-                                        <div class="flex items-center justify-between mb-1">
-                                            <p class="text-white font-semibold text-sm truncate">{{ item.other_user.username }}</p>
-                                            {% if item.last_message %}
-                                                <span class="text-white/60 text-xs ml-2 flex-shrink-0">
-                                                    {{ item.last_message.created_at|format_chat_time }}
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            {% if item.last_message %}
-                                                <p class="text-white/80 text-sm truncate">{{ item.last_message.content|truncatewords:8 }}</p>
-                                            {% else %}
-                                                <p class="text-white/60 text-sm italic">Aucun message</p>
-                                            {% endif %}
-                                            {% if item.unread_count > 0 %}
-                                                <span class="ml-2 flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                                                    <span class="text-white text-xs font-bold">{{ item.unread_count }}</span>
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
-                            </div>
-                        {% elif item.type == 'group' %}
+                        {% if item.type == 'group' %}
                             <div x-show="filterType === 'all' || filterType === 'groups'">
                             <!-- Groupe -->
                             <a 
@@ -500,18 +585,18 @@
             </div>
     </aside>
     
-    <!-- Zone de chat principale -->
+    <!-- Zone de chat principale - Affichée directement -->
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
         <!-- Header de groupe -->
         <header class="glass-card tab-bar border-b border-white/20 p-2 md:p-4 flex items-center justify-between gap-2 flex-shrink-0">
             <div class="flex items-center space-x-2 md:space-x-3 min-w-0 flex-1">
-                <!-- Bouton retour au feed du groupe (mobile) -->
+                <!-- Bouton retour au feed du groupe -->
                 <a 
                     href="{% url 'forum:group_feed' group.id %}"
-                    class="md:hidden text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors flex-shrink-0"
-                    title="Retour au fil d'actualité du groupe"
+                    class="text-white hover:bg-white/20 p-1.5 md:p-2 rounded-lg transition-colors flex-shrink-0"
+                    title="Retour au feed du groupe"
                 >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
                     </svg>
                 </a>
@@ -555,16 +640,6 @@
             
             <!-- Actions -->
             <div class="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
-                <!-- Bouton retour au feed du groupe (desktop) -->
-                <a 
-                    href="{% url 'forum:group_feed' group.id %}"
-                    class="hidden md:flex text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-                    title="Retour au fil d'actualité du groupe"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                    </svg>
-                </a>
                 
                 {% if group.creator == user %}
                 <a href="{% url 'forum:manage_group' group.id %}" class="text-white hover:bg-white/20 p-1.5 md:p-2 rounded-lg transition-colors flex-shrink-0" title="Gérer le groupe">
@@ -591,92 +666,42 @@
     
         <!-- Zone des messages -->
     {% if is_member %}
-        <div class="chat-container">
-            <div class="messages-container" id="messages-container">
-                {% for message in messages %}
-                    <div class="message-bubble {% if message.sender == user %}message-sent{% else %}message-received{% endif %}">
-                        <div>
-                        {% if message.sender != user %}
-                                <div class="flex items-center space-x-2 mb-1">
-                                    <a href="{% url 'users:profile' message.sender.username %}" class="flex items-center space-x-2 hover:opacity-80 transition-opacity group">
-                                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden flex-shrink-0 ring-1 ring-white/30">
-                                            {% if message.sender.avatar %}
-                                                <img src="{{ message.sender.avatar.url }}" alt="{{ message.sender.username }}" class="w-full h-full object-cover">
-                                            {% else %}
-                                                <span class="text-white text-xs font-bold">{{ message.sender.username|first|upper }}</span>
-                                            {% endif %}
-                                        </div>
-                                        <p class="text-xs font-semibold opacity-90">{{ message.sender.username }}</p>
-                                    </a>
+        <div class="chat-container" id="group-chat-content">
+            <div class="messages-container telegram-messages-area custom-scrollbar" id="messages-container" style="padding: 0.5rem 0.75rem;">
+                {% regroup messages by created_at|date:"Y-m-d" as messages_by_date %}
+                
+                {% for date_group in messages_by_date %}
+                    <div class="timestamp-separator">
+                        <span>
+                            {% now "Y-m-d" as today_str %}
+                            {% if date_group.grouper == today_str %}
+                                Aujourd'hui
+                            {% else %}
+                                {{ date_group.grouper|date:"d F Y" }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    {% regroup date_group.list by sender as messages_by_sender %}
+                    {% for sender_group in messages_by_sender %}
+                        <div class="message-group {% if sender_group.grouper == user %}sent{% else %}received{% endif %}">
+                            {% if sender_group.grouper != user %}
+                                <div class="message-avatar">
+                                    {% if sender_group.grouper.avatar %}
+                                        <img src="{{ sender_group.grouper.avatar.url }}" alt="{{ sender_group.grouper.username }}">
+                                    {% else %}
+                                        <span>{{ sender_group.grouper.username|first|upper }}</span>
+                                    {% endif %}
                                 </div>
                             {% endif %}
-                            {% if message.content %}
-                                <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
-                        {% endif %}
-                        {% if message.image %}
-                                <img src="{{ message.image.url }}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('{{ message.image.url }}')">
-                            {% endif %}
-                            {% if message.video %}
-                                <video src="{{ message.video.url }}" controls class="mt-2 rounded-xl max-w-full max-h-64 shadow-md">
-                                    Votre navigateur ne supporte pas la lecture de vidéos.
-                                </video>
-                            {% endif %}
-                            {% if message.audio %}
-                                <div class="mt-2 p-2 md:p-3 rounded-xl bg-white/30 backdrop-blur-sm">
-                                    <audio src="{{ message.audio.url }}" controls class="w-full">
-                                        Votre navigateur ne supporte pas la lecture audio.
-                                    </audio>
-                                </div>
-                            {% endif %}
-                            {% if message.file %}
-                                <div class="mt-2 p-3 rounded-xl bg-white/30 backdrop-blur-sm flex items-center space-x-3 border border-white/20">
-                                    <div class="flex-shrink-0">
-                                        {% if message.file_name %}
-                                            {% if ".pdf" in message.file_name|lower %}
-                                                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                                                </svg>
-                                            {% elif ".doc" in message.file_name|lower %}
-                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                                                </svg>
-                                            {% elif ".xls" in message.file_name|lower %}
-                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                                                </svg>
-                                            {% elif ".zip" in message.file_name|lower or ".rar" in message.file_name|lower %}
-                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                                                </svg>
-                                            {% else %}
-                                                <svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                                                </svg>
-                                            {% endif %}
-                                        {% else %}
-                                            <svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                                            </svg>
-                                        {% endif %}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs md:text-sm font-semibold opacity-90 truncate">{{ message.file_name|default:"Fichier" }}</p>
-                                        <p class="text-xs opacity-75">Fichier joint</p>
-                                    </div>
-                                    <a href="{{ message.file.url }}" download class="flex-shrink-0 text-blue-500 hover:text-blue-700 transition-colors" title="Télécharger">
-                                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                        </svg>
-                                    </a>
-                                </div>
-                        {% endif %}
-                            <div class="flex items-center {% if message.sender == user %}justify-end{% else %}justify-start{% endif %} mt-1.5 space-x-1">
-                                <span class="text-xs opacity-70">
-                                    {{ message.created_at|format_chat_time }}
-                                </span>
+                            
+                            <div class="flex flex-col gap-0.5">
+                                {% for message in sender_group.list %}
+                                    {% include 'forum/components/group_message_bubble.html' with message=message user=user %}
+                                {% endfor %}
                             </div>
                         </div>
-                    </div>
+                    {% endfor %}
                 {% empty %}
                     <div class="text-center text-white/60 mt-8">
                         <p>Aucun message. Commencez la conversation !</p>
@@ -685,7 +710,7 @@
             </div>
             
             <!-- Input de message -->
-            <div class="glass-card tab-bar border-t border-white/20 p-2 md:p-4 relative flex-shrink-0" x-data="{ 
+            <div class="glass-card tab-bar border-t border-white/20 relative flex-shrink-0" x-data="{ 
                 emojiPickerOpen: false, 
                 selectedFile: null, 
                 fileInput: null,
@@ -804,9 +829,9 @@
                         id="group-message-input"
                         placeholder="Écrire un message…"
                         rows="1"
-                        class="flex-1 min-w-0 px-2.5 md:px-4 py-2 md:py-3 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all text-sm md:text-base resize-none overflow-hidden max-h-32"
+                        class="flex-1 min-w-0 px-2 md:px-3 py-1.5 md:py-2 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all text-sm resize-none overflow-hidden max-h-32"
                         autocomplete="off"
-                        style="min-height: 2rem; max-height: 8rem;"
+                        style="min-height: 2.5rem !important; max-height: 8rem !important; font-size: 0.875rem !important; line-height: 1.4 !important;"
                     ></textarea>
                     
                     <!-- Bouton envoi -->
@@ -943,141 +968,137 @@
         });
     }
     
-    document.querySelector('#group-message-form').onsubmit = function(e) {
-        e.preventDefault();
-        const message = messageInput.value.trim();
-        const fileInput = document.getElementById('group-file-input');
-        const hasFile = fileInput && fileInput.files.length > 0;
+    // Fonction pour attacher le gestionnaire de formulaire (réutilisable pour le popup)
+    function attachGroupMessageFormHandler(form, container) {
+        if (!form) return;
         
-        if (!message && !hasFile) return;
-        
-        const formData = new FormData();
-        if (message) {
-        formData.append('content', message);
-        }
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-        
-        // Ajouter le fichier/image/vidéo/audio si sélectionné
-        const videoInput = document.getElementById('group-video-input');
-        const audioInput = document.getElementById('group-audio-input');
-        
-        if (videoInput && videoInput.files.length > 0) {
-            formData.append('video', videoInput.files[0]);
-        } else if (audioInput && audioInput.files.length > 0) {
-            formData.append('audio', audioInput.files[0]);
-        } else if (fileInput && fileInput.files.length > 0) {
-            const selectedFile = fileInput.files[0];
-            // Vérifier si c'est une image
-            if (selectedFile.type && selectedFile.type.startsWith('image/')) {
-                formData.append('image', selectedFile);
-            } else {
-                formData.append('file', selectedFile);
-                if (selectedFile.name) {
-                    formData.append('file_name', selectedFile.name);
-                }
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            const inputId = form.id === 'group-message-form-popup' ? 'group-message-input-popup' : 'group-message-input';
+            const messageInput = document.getElementById(inputId);
+            if (!messageInput) return;
+            
+            const message = messageInput.value.trim();
+            const fileInputId = form.id === 'group-message-form-popup' ? 'group-file-input-popup' : 'group-file-input';
+            const fileInput = document.getElementById(fileInputId);
+            const hasFile = fileInput && fileInput.files.length > 0;
+            
+            if (!message && !hasFile) return;
+            
+            const formData = new FormData();
+            if (message) {
+                formData.append('content', message);
             }
-        }
-        
-        fetch(`{% url 'forum:send_group_message' group.id %}`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message-bubble message-sent';
-                
-                const time = new Date(data.message.created_at).toLocaleTimeString('fr-FR', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
-                
-                let contentHtml = '';
-                if (data.message.content) {
-                    contentHtml += `<p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(data.message.content)}</p>`;
-                }
-                
-                // Ajouter l'image si présente
-                if (data.message.image) {
-                    contentHtml += `<img src="${data.message.image}" alt="Message image" class="mt-2 rounded-xl max-w-full shadow-md cursor-pointer" onclick="openImageModal('${data.message.image}')">`;
-                }
-                
-                // Ajouter la vidéo si présente
-                if (data.message.video) {
-                    contentHtml += `<video src="${data.message.video}" controls class="mt-2 rounded-xl max-w-full max-h-64 shadow-md">Votre navigateur ne supporte pas la lecture de vidéos.</video>`;
-                }
-                
-                // Ajouter l'audio si présent
-                if (data.message.audio) {
-                    contentHtml += `<div class="mt-2 p-2 md:p-3 rounded-xl bg-white/30 backdrop-blur-sm"><audio src="${data.message.audio}" controls class="w-full">Votre navigateur ne supporte pas la lecture audio.</audio></div>`;
-                }
-                
-                // Ajouter le fichier si présent (et ce n'est pas une image/vidéo/audio)
-                if (data.message.file && data.message.file_name && !data.message.image && !data.message.video && !data.message.audio) {
-                    const fileIcon = getFileIcon(data.message.file_name);
-                    contentHtml += `
-                        <div class="mt-2 p-3 rounded-xl bg-white/50 flex items-center space-x-3">
-                            <div class="flex-shrink-0">${fileIcon}</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs md:text-sm font-semibold opacity-90 truncate">${escapeHtml(data.message.file_name)}</p>
-                                <p class="text-xs opacity-75">Fichier joint</p>
-                            </div>
-                            <a href="${data.message.file}" download class="flex-shrink-0 text-blue-500 hover:text-blue-700 transition-colors" title="Télécharger">
-                                <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                </svg>
-                            </a>
-                        </div>
-                    `;
-                }
-                
-                messageDiv.innerHTML = `
-                    <div>
-                        ${contentHtml}
-                        <div class="flex items-center justify-end mt-1.5 space-x-1">
-                            <span class="text-xs opacity-70">${time}</span>
-                        </div>
-                    </div>
-                `;
-                
-                messagesContainer.appendChild(messageDiv);
-                
-                // Scroller seulement si l'utilisateur est près du bas
-                scrollToBottomIfNeeded(messagesContainer);
-                
-                messageInput.value = '';
-                if (messageInput) {
-                    messageInput.style.height = 'auto';
-                    autoResizeTextarea(messageInput);
-                }
-                
-                // Réinitialiser le fichier sélectionné
-                if (fileInput) {
-                    fileInput.value = '';
-                }
-                // Réinitialiser Alpine.js selectedFile
-                try {
-                    const alpineElement = document.querySelector('[x-data*="selectedFile"]');
-                    if (alpineElement && Alpine && Alpine.$data) {
-                        const alpineData = Alpine.$data(alpineElement);
-                        if (alpineData && alpineData.selectedFile !== undefined) {
-                            alpineData.selectedFile = null;
-                        }
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            
+            // Ajouter le fichier/image/vidéo/audio si sélectionné
+            const videoInputId = form.id === 'group-message-form-popup' ? 'group-video-input-popup' : 'group-video-input';
+            const audioInputId = form.id === 'group-message-form-popup' ? 'group-audio-input-popup' : 'group-audio-input';
+            const videoInput = document.getElementById(videoInputId);
+            const audioInput = document.getElementById(audioInputId);
+            
+            if (videoInput && videoInput.files.length > 0) {
+                formData.append('video', videoInput.files[0]);
+            } else if (audioInput && audioInput.files.length > 0) {
+                formData.append('audio', audioInput.files[0]);
+            } else if (fileInput && fileInput.files.length > 0) {
+                const selectedFile = fileInput.files[0];
+                // Vérifier si c'est une image
+                if (selectedFile.type && selectedFile.type.startsWith('image/')) {
+                    formData.append('image', selectedFile);
+                } else {
+                    formData.append('file', selectedFile);
+                    if (selectedFile.name) {
+                        formData.append('file_name', selectedFile.name);
                     }
-                } catch (e) {
-                    console.log('Could not reset Alpine selectedFile:', e);
                 }
-            } else if (data.error) {
-                console.error('Error:', data.error);
-                alert('Erreur: ' + data.error);
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Erreur lors de l\'envoi du message');
+            
+            fetch(`{% url 'forum:send_group_message' group.id %}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.message) {
+                    // Déterminer le bon conteneur de messages
+                    const messagesContainerId = form.id === 'group-message-form-popup' ? 'messages-container-popup' : 'messages-container';
+                    const targetMessagesContainer = document.getElementById(messagesContainerId);
+                    
+                    if (targetMessagesContainer) {
+                        // Mettre à jour le dernier message ID pour éviter de le récupérer en double via polling
+                        if (data.message.id) {
+                            lastGroupMessageId = Math.max(lastGroupMessageId || 0, data.message.id);
+                        }
+                        addGroupMessageToDOM(data.message, true, targetMessagesContainer);
+                    }
+                    
+                    messageInput.value = '';
+                    if (messageInput) {
+                        messageInput.style.height = 'auto';
+                        autoResizeTextarea(messageInput);
+                    }
+                    
+                    // Réinitialiser le fichier sélectionné
+                    if (fileInput) {
+                        fileInput.value = '';
+                    }
+                    // Réinitialiser Alpine.js selectedFile
+                    try {
+                        const alpineElement = container.querySelector('[x-data*="selectedFile"]');
+                        if (alpineElement && window.Alpine && window.Alpine.$data) {
+                            const alpineData = window.Alpine.$data(alpineElement);
+                            if (alpineData && alpineData.selectedFile !== undefined) {
+                                alpineData.selectedFile = null;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not reset Alpine selectedFile:', e);
+                    }
+                } else if (data.error) {
+                    console.error('Error:', data.error);
+                    alert('Erreur: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Erreur lors de l\'envoi du message');
+            });
+        };
+    }
+    
+    // Fonction pour attacher les gestionnaires d'événements à l'input
+    function attachGroupMessageInputHandlers(input, form) {
+        if (!input) return;
+        
+        // Auto-resize
+        autoResizeTextarea(input);
+        input.addEventListener('input', function() {
+            autoResizeTextarea(this);
         });
-    };
+        
+        // Gérer Enter (envoyer) vs Shift+Enter (nouvelle ligne)
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (form) {
+                    form.dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+    }
+    
+    // Attacher le gestionnaire au formulaire principal
+    const mainForm = document.querySelector('#group-chat-content #group-message-form');
+    if (mainForm) {
+        attachGroupMessageFormHandler(mainForm, document.getElementById('group-chat-content'));
+    }
+    
+    // Attacher les gestionnaires à l'input principal (si pas déjà fait)
+    if (messageInput && !messageInput.hasAttribute('data-handlers-attached')) {
+        attachGroupMessageInputHandlers(messageInput, mainForm);
+        messageInput.setAttribute('data-handlers-attached', 'true');
+    }
     
     function escapeHtml(text) {
         const div = document.createElement('div');
@@ -1121,6 +1142,302 @@
         `;
         document.body.appendChild(modal);
     }
+    
+    // ============================================
+    // Polling pour les messages de groupe
+    // ============================================
+    
+    let groupPollingInterval = null;
+    let lastGroupMessageId = null;
+    
+    // Fonction pour obtenir le dernier message ID
+    function updateLastGroupMessageId() {
+        const messages = messagesContainer?.querySelectorAll('[data-message-id]');
+        if (messages && messages.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            const messageId = lastMessage.getAttribute('data-message-id');
+            if (messageId && !messageId.toString().startsWith('temp_')) {
+                lastGroupMessageId = parseInt(messageId);
+            }
+        }
+    }
+    
+    // Groupes de messages pour le groupement
+    const groupMessageGroups = new Map();
+    
+    // Fonction pour obtenir ou créer un groupe de messages
+    function getGroupMessageGroup(messageData, isSent) {
+        const date = new Date(messageData.created_at);
+        const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        const groupKey = `${messageData.sender_id}_${dateKey}`;
+        
+        if (!groupMessageGroups.has(groupKey)) {
+            const group = document.createElement('div');
+            group.className = `message-group ${isSent ? 'sent' : 'received'}`;
+            group.dataset.groupKey = groupKey;
+            
+            // Ajouter l'avatar pour les messages reçus
+            if (!isSent) {
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                if (messageData.sender_avatar) {
+                    const img = document.createElement('img');
+                    img.src = messageData.sender_avatar;
+                    img.alt = messageData.sender;
+                    avatar.appendChild(img);
+                } else {
+                    const span = document.createElement('span');
+                    span.textContent = (messageData.sender || '?')[0].toUpperCase();
+                    avatar.appendChild(span);
+                }
+                group.appendChild(avatar);
+            }
+            
+            // Créer le conteneur pour les bulles
+            const bubblesContainer = document.createElement('div');
+            bubblesContainer.className = 'flex flex-col gap-0.5';
+            group.appendChild(bubblesContainer);
+            
+            groupMessageGroups.set(groupKey, group);
+        }
+        
+        return groupMessageGroups.get(groupKey);
+    }
+    
+    // Fonction pour créer une bulle de message
+    function createGroupMessageBubble(messageData, isSent) {
+        const bubble = document.createElement('div');
+        bubble.className = `message-bubble ${isSent ? 'message-sent' : 'message-received'}`;
+        // Utiliser l'ID réel ou un ID temporaire pour les messages optimistes
+        if (messageData.id) {
+            bubble.dataset.messageId = messageData.id;
+        } else {
+            bubble.dataset.messageId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        
+        let content = '';
+        
+        // Nom de l'expéditeur pour les messages reçus (groupes)
+        if (!isSent) {
+            content += `<div class="message-sender-name"><a href="/auth/profile/${escapeHtml(messageData.sender)}/">${escapeHtml(messageData.sender)}</a></div>`;
+        }
+        
+        // Contenu texte
+        if (messageData.content) {
+            content += `<div class="message-content">${formatMessageContent(messageData.content)}</div>`;
+        }
+        
+        // Média (image, vidéo, audio)
+        if (messageData.image) {
+            content += `<div class="message-media"><img src="${messageData.image}" alt="Image" loading="lazy" onclick="openImageModal('${messageData.image}')"></div>`;
+        } else if (messageData.video) {
+            content += `<div class="message-media"><video src="${messageData.video}" controls></video></div>`;
+        } else if (messageData.audio) {
+            content += `<div class="message-media"><audio src="${messageData.audio}" controls></audio></div>`;
+        } else if (messageData.file) {
+            content += createGroupFileMessage(messageData);
+        }
+        
+        // Footer avec timestamp
+        const time = new Date(messageData.created_at).toLocaleTimeString('fr-FR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        content += `
+            <div class="message-footer">
+                <span class="message-time">${time}</span>
+            </div>
+        `;
+        
+        bubble.innerHTML = content;
+        return bubble;
+    }
+    
+    // Fonction pour créer un message de fichier
+    function createGroupFileMessage(messageData) {
+        const fileName = messageData.file_name || 'Fichier';
+        const fileSize = messageData.file_size || 0;
+        
+        return `
+            <div class="message-file">
+                <div class="message-file-icon">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <div class="message-file-info">
+                    <div class="message-file-name">${escapeHtml(fileName)}</div>
+                    <div class="message-file-size">${formatFileSize(fileSize)}</div>
+                </div>
+                <a href="${messageData.file}" download class="text-telegram-blue hover:underline">Télécharger</a>
+            </div>
+        `;
+    }
+    
+    // Fonction pour formater le contenu du message
+    function formatMessageContent(text) {
+        // Échapper HTML
+        text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        // Détecter les liens
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        text = text.replace(urlRegex, '<a href="$1" target="_blank" class="text-telegram-blue-light underline">$1</a>');
+        // Détecter les retours à la ligne
+        text = text.replace(/\n/g, '<br>');
+        return text;
+    }
+    
+    // Fonction pour formater la taille de fichier
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    // Fonction pour ajouter un message de groupe au DOM
+    function addGroupMessageToDOM(messageData, shouldScroll = false, targetContainer = null) {
+        // Utiliser le conteneur cible ou le conteneur par défaut
+        const container = targetContainer || messagesContainer;
+        if (!container) return;
+        const isSent = messageData.sender_id === currentUserId;
+        
+        // Vérifier si le message existe déjà par son ID
+        if (messageData.id) {
+            const existingMessage = container.querySelector(`[data-message-id="${messageData.id}"]`);
+            if (existingMessage) {
+                return; // Message déjà présent
+            }
+        }
+        
+        // Vérifier aussi par contenu et timestamp pour éviter les doublons de messages optimistes
+        if (messageData.content) {
+            const allBubbles = container.querySelectorAll('.message-bubble');
+            for (const bubble of allBubbles) {
+                const contentEl = bubble.querySelector('.message-content');
+                if (contentEl && contentEl.textContent.trim() === messageData.content.trim()) {
+                    const timeEl = bubble.querySelector('.message-time');
+                    if (timeEl) {
+                        const bubbleTime = timeEl.textContent.trim();
+                        const messageTime = new Date(messageData.created_at).toLocaleTimeString('fr-FR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
+                        if (bubbleTime === messageTime) {
+                            // Message identique trouvé, mettre à jour l'ID si nécessaire
+                            if (messageData.id && !bubble.dataset.messageId) {
+                                bubble.dataset.messageId = messageData.id;
+                            }
+                            return; // Ne pas ajouter en double
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Obtenir ou créer le groupe de messages
+        const messageGroup = getGroupMessageGroup(messageData, isSent);
+        
+        // Créer la bulle de message
+        const messageBubble = createGroupMessageBubble(messageData, isSent);
+        
+        // Trouver le conteneur de bulles dans le groupe
+        let bubblesContainer = messageGroup.querySelector('.flex.flex-col');
+        if (!bubblesContainer) {
+            bubblesContainer = document.createElement('div');
+            bubblesContainer.className = 'flex flex-col gap-0.5';
+            messageGroup.appendChild(bubblesContainer);
+        }
+        
+        bubblesContainer.appendChild(messageBubble);
+        
+        // Ajouter le groupe au DOM s'il n'existe pas
+        if (!messageGroup.parentElement) {
+            container.appendChild(messageGroup);
+        }
+        
+        // Scroller vers le bas si nécessaire
+        if (shouldScroll || isNearBottom(container)) {
+            requestAnimationFrame(() => {
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+    }
+    
+    // Fonction de polling pour récupérer les nouveaux messages
+    async function pollGroupMessages() {
+        if (!groupId) return;
+        
+        try {
+            const url = `{% url 'forum:get_new_group_messages' group.id %}`;
+            const params = lastGroupMessageId ? `?last_message_id=${lastGroupMessageId}` : '';
+            
+            const response = await fetch(url + params, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.messages && data.messages.length > 0) {
+                    // Ajouter les nouveaux messages
+                    data.messages.forEach(message => {
+                        addGroupMessageToDOM(message, true);
+                        lastGroupMessageId = Math.max(lastGroupMessageId || 0, message.id);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors du polling des messages de groupe:', error);
+        }
+    }
+    
+    // Démarrer le polling
+    function startGroupPolling() {
+        // Arrêter le polling précédent si existant
+        if (groupPollingInterval) {
+            clearInterval(groupPollingInterval);
+        }
+        
+        // Mettre à jour le dernier message ID
+        updateLastGroupMessageId();
+        
+        // Démarrer le polling toutes les 2 secondes
+        groupPollingInterval = setInterval(pollGroupMessages, 2000);
+        
+        console.log('Polling démarré pour le groupe', groupId);
+    }
+    
+    // Arrêter le polling
+    function stopGroupPolling() {
+        if (groupPollingInterval) {
+            clearInterval(groupPollingInterval);
+            groupPollingInterval = null;
+        }
+    }
+    
+    // Démarrer le polling au chargement de la page
+    if (groupId) {
+        startGroupPolling();
+    }
+    
+    // Arrêter le polling quand la page est cachée
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopGroupPolling();
+        } else {
+            startGroupPolling();
+        }
+    });
+    
+    // Le formulaire est déjà géré par le code plus haut (ligne 948)
+    // Le polling récupérera automatiquement les nouveaux messages
 </script>
+
+
 {% endif %}
 {% endblock %}

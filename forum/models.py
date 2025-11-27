@@ -120,8 +120,8 @@ class Group(models.Model):
     
     class Meta:
         ordering = ['-updated_at']
-        verbose_name = "Groupe"
-        verbose_name_plural = "Groupes"
+        verbose_name = "Groupe de discussion"
+        verbose_name_plural = "Groupes de discussion"
     
     def __str__(self):
         return f"{self.name} ({self.topic.name})"
@@ -149,14 +149,12 @@ class Group(models.Model):
         """Vérifier si un utilisateur peut accéder au groupe"""
         if not user.is_authenticated:
             return False
-        # Le créateur a toujours accès
+        # Le créateur a toujours accès (propriétaire)
         if self.creator == user:
             return True
-        # Si le groupe nécessite une approbation, vérifier si l'utilisateur est membre
-        if self.requires_approval:
-            return self.is_member(user)
-        # Sinon, vérifier si l'utilisateur est abonné
-        return self.is_subscribed(user)
+        # Tous les autres utilisateurs doivent être membres (après approbation de leur demande)
+        # Un utilisateur est membre seulement après que sa demande d'abonnement ait été approuvée
+        return self.is_member(user)
 
 
 class GroupRequest(models.Model):

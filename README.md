@@ -2,6 +2,17 @@
 
 Votre forum gabonais pour discuter, partager et connecter.
 
+## ⚠️ IMPORTANT : Démarrage du serveur
+
+**Pour le chat en temps réel, vous DEVEZ utiliser Daphne au lieu de `runserver`.**
+
+👉 **Voir [DEMARRAGE_SERVEUR.md](DEMARRAGE_SERVEUR.md) pour les instructions complètes.**
+
+**Démarrage rapide :**
+```bash
+python run_daphne.py
+```
+
 ## 🚀 Fonctionnalités
 
 - **Forum** : Création de posts avec texte et images, commentaires, likes
@@ -80,9 +91,26 @@ python manage.py createsuperuser
 ```
 
 8. **Lancer le serveur**
+
+⚠️ **IMPORTANT** : Pour le chat en temps réel (WebSockets), vous devez utiliser **Daphne** au lieu de `runserver`.
+
+**Option 1 : Avec Daphne (Recommandé - Support WebSocket)**
+```bash
+# Linux/Mac
+./start_server.sh
+
+# Windows
+start_server.bat
+
+# Ou manuellement
+daphne -b 0.0.0.0 -p 8000 kongossa.asgi:application
+```
+
+**Option 2 : Avec runserver (⚠️ Pas de WebSocket)**
 ```bash
 python manage.py runserver
 ```
+⚠️ **Note** : Le chat en temps réel ne fonctionnera PAS avec cette méthode.
 
 L'application sera accessible sur `http://localhost:8000`
 

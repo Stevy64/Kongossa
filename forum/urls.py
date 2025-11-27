@@ -32,6 +32,7 @@ urlpatterns = [
     path('group-request/<int:request_id>/cancel/', views.cancel_group_request, name='cancel_group_request'),
     path('group/<int:group_id>/leave/', views.leave_group, name='leave_group'),
     path('group/<int:group_id>/message/', views.send_group_message, name='send_group_message'),
+    path('group/<int:group_id>/new-messages/', views.get_new_group_messages, name='get_new_group_messages'),
     path('topic/<slug:topic_slug>/group/create/', views.create_group, name='create_group'),
 ]
 

@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 
-{% block title %}Créer un nouveau sujet - Kongossa{% endblock %}
+{% block title %}Créer un groupe - Kongossa{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-blurred pb-20">
+<div class="min-h-screen bg-blurred pb-20" x-data="{ activeTab: 'group' }">
     <!-- Header -->
     <div class="glass-dark tab-bar sticky top-0 z-40 backdrop-blur-xl border-b border-white/20">
         <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
@@ -13,77 +13,117 @@
                 </svg>
                 <span>Retour</span>
             </a>
-            <h1 class="text-white text-2xl font-poppins font-bold gradient-text">Créer un nouveau sujet</h1>
+            <h1 class="text-white text-2xl font-poppins font-bold gradient-text">Créer un groupe</h1>
             <div class="w-20"></div>
         </div>
     </div>
     
     <div class="max-w-2xl mx-auto px-4 py-8">
-        <div class="glass-enhanced rounded-3xl p-8 border border-white/20 shadow-2xl fade-in-up">
-            <form method="POST" action="{% url 'forum:create_topic' %}" class="space-y-6">
+        <!-- Onglets -->
+        <div class="mb-6 flex space-x-2 bg-white/5 rounded-2xl p-2 border border-white/10">
+            <button 
+                @click="activeTab = 'group'"
+                :class="activeTab === 'group' ? 'bg-gradient-gold text-brand-primary' : 'text-white/60 hover:text-white'"
+                class="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+            >
+                Créer un groupe
+            </button>
+            <button 
+                @click="activeTab = 'visual'"
+                :class="activeTab === 'visual' ? 'bg-gradient-gold text-brand-primary' : 'text-white/60 hover:text-white'"
+                class="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+            >
+                Visuel
+            </button>
+        </div>
+        
+        <!-- Formulaire de paramètres visuels -->
+        <div x-show="activeTab === 'visual'" x-cloak class="glass-enhanced rounded-3xl p-8 border border-white/20 shadow-2xl fade-in-up">
+            <form method="POST" action="{% url 'forum:create_topic' %}" enctype="multipart/form-data" class="space-y-6" id="group-visual-form">
                 {% csrf_token %}
+                <input type="hidden" name="form_type" value="group">
                 
-                <!-- Nom du sujet -->
-                <div>
-                    <label for="name" class="block text-white font-semibold mb-2">
-                        Nom du sujet <span class="text-red-400">*</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        id="name"
-                        name="name" 
-                        required
-                        maxlength="100"
-                        placeholder="Ex: Technologie, Sport, Culture..."
-                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
-                    >
-                    <p class="text-gray-400 text-sm mt-1">Choisissez un nom clair et descriptif pour votre sujet</p>
-                </div>
-                
-                <!-- Description -->
-                <div>
-                    <label for="description" class="block text-white font-semibold mb-2">
-                        Description
-                    </label>
-                    <textarea 
-                        id="description"
-                        name="description" 
-                        rows="4"
-                        maxlength="500"
-                        placeholder="Décrivez brièvement le sujet de discussion..."
-                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none backdrop-blur-sm transition-all"
-                    ></textarea>
-                    <p class="text-gray-400 text-sm mt-1">Une description aide les utilisateurs à comprendre le sujet</p>
+                <!-- Création d'un nouveau thème -->
+                <div x-data="{ createNewTopic: false }" class="space-y-6">
+                    <div class="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <div>
+                            <h3 class="text-white font-semibold mb-1">Créer un nouveau thème</h3>
+                            <p class="text-gray-400 text-sm">Créez un nouveau thème pour enrichir la liste des thèmes disponibles</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" x-model="createNewTopic" name="create_new_topic" class="sr-only peer">
+                            <div class="w-14 h-7 bg-white/20 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-gold rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gold"></div>
+                        </label>
+                    </div>
+                    
+                    <!-- Formulaire de création de thème -->
+                    <div x-show="createNewTopic" x-cloak class="space-y-4 p-6 rounded-2xl bg-white/5 border border-white/10">
+                        <h4 class="text-white font-semibold mb-4">Informations du nouveau thème</h4>
+                        
+                        <!-- Nom du thème -->
+                        <div>
+                            <label for="new-topic-name" class="block text-white font-semibold mb-2">
+                                Nom du thème <span class="text-red-400">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="new-topic-name"
+                                name="new_topic_name" 
+                                maxlength="100"
+                                placeholder="Ex: Technologie, Sport, Musique..."
+                                class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent backdrop-blur-sm transition-all"
+                            >
+                            <p class="text-gray-400 text-sm mt-1">Choisissez un nom clair et descriptif pour votre thème</p>
+                        </div>
+                        
+                        <!-- Description du thème -->
+                        <div>
+                            <label for="new-topic-description" class="block text-white font-semibold mb-2">
+                                Description du thème
+                            </label>
+                            <textarea 
+                                id="new-topic-description"
+                                name="new_topic_description" 
+                                rows="3"
+                                maxlength="500"
+                                placeholder="Décrivez brièvement ce thème..."
+                                class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent resize-none backdrop-blur-sm transition-all"
+                            ></textarea>
+                            <p class="text-gray-400 text-sm mt-1">Une description aide les utilisateurs à comprendre le thème</p>
+                        </div>
+                        
+                        <p class="text-gray-400 text-sm italic">Note: L'icône et la couleur définis ci-dessous seront utilisés pour ce nouveau thème.</p>
+                    </div>
                 </div>
                 
                 <!-- Icône et Couleur -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Icône -->
                     <div>
-                        <label for="icon" class="block text-white font-semibold mb-2">
+                        <label for="group-icon" class="block text-white font-semibold mb-2">
                             Icône (emoji)
                         </label>
                         <input 
                             type="text" 
-                            id="icon"
+                            id="group-icon"
                             name="icon" 
                             maxlength="2"
                             value="💬"
                             placeholder="💬"
-                            class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all text-center text-2xl"
+                            class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent backdrop-blur-sm transition-all text-center text-2xl"
                         >
-                        <p class="text-gray-400 text-sm mt-1">Choisissez un emoji représentatif</p>
+                        <p class="text-gray-400 text-sm mt-1">Choisissez un emoji représentatif pour votre groupe</p>
                     </div>
                     
                     <!-- Couleur -->
                     <div>
-                        <label for="color" class="block text-white font-semibold mb-2">
-                            Couleur
+                        <label for="group-color" class="block text-white font-semibold mb-2">
+                            Couleur du groupe
                         </label>
                         <div class="flex items-center space-x-3">
                             <input 
                                 type="color" 
-                                id="color"
+                                id="group-color"
                                 name="color" 
                                 value="#9333ea"
                                 class="w-16 h-16 rounded-xl bg-white/10 border border-white/20 cursor-pointer"
@@ -91,27 +131,267 @@
                             <input 
                                 type="text" 
                                 value="#9333ea"
-                                id="color-text"
-                                class="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                                id="group-color-text"
+                                class="flex-1 px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent backdrop-blur-sm transition-all"
                                 placeholder="#9333ea"
                             >
                         </div>
-                        <p class="text-gray-400 text-sm mt-1">Couleur du thème</p>
+                        <p class="text-gray-400 text-sm mt-1">Couleur principale du groupe</p>
                     </div>
                 </div>
                 
                 <!-- Preview -->
                 <div class="mt-6 p-6 rounded-2xl bg-white/5 border border-white/10">
-                    <p class="text-gray-400 text-sm mb-3">Aperçu :</p>
+                    <p class="text-gray-400 text-sm mb-3">Aperçu du groupe :</p>
                     <div class="flex items-center space-x-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg" id="preview-icon">
-                            <span class="text-3xl" id="preview-icon-text">💬</span>
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg" id="group-preview-icon">
+                            <span class="text-3xl" id="group-preview-icon-text">💬</span>
                         </div>
                         <div>
-                            <h3 class="text-white font-bold text-lg" id="preview-name">Nom du sujet</h3>
-                            <p class="text-gray-300 text-sm" id="preview-description">Description du sujet...</p>
+                            <h3 class="text-white font-bold text-lg" id="group-preview-name">Nom du groupe</h3>
+                            <p class="text-gray-300 text-sm" id="group-preview-description">Description du groupe...</p>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Image du groupe (référence au champ du formulaire principal) -->
+                <div>
+                    <label for="group-image" class="block text-white font-semibold mb-2">
+                        Image du groupe (optionnel)
+                    </label>
+                    <input 
+                        type="file" 
+                        id="group-image-visual"
+                        accept="image/*"
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gold file:text-brand-primary hover:file:bg-yellow-400"
+                        onchange="syncImageFile(this)"
+                    >
+                    <p class="text-gray-400 text-sm mt-1">Ajoutez une image représentative de votre groupe</p>
+                </div>
+            
+            </form>
+        </div>
+        
+        <!-- Formulaire de création de Groupe (informations de base) -->
+        <div x-show="activeTab === 'group'" class="glass-enhanced rounded-3xl p-8 border border-white/20 shadow-2xl fade-in-up">
+            <form method="POST" action="{% url 'forum:create_topic' %}" enctype="multipart/form-data" class="space-y-6" id="group-form">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="group">
+                
+                <!-- Champs cachés pour les données de l'onglet Visuel -->
+                <input type="hidden" name="icon" id="group-form-icon" value="💬">
+                <input type="hidden" name="color" id="group-form-color" value="#9333ea">
+                <input type="hidden" name="create_new_topic" id="group-form-create-new-topic">
+                <input type="hidden" name="new_topic_name" id="group-form-new-topic-name">
+                <input type="hidden" name="new_topic_description" id="group-form-new-topic-description">
+                
+                <!-- Sélection du thème -->
+                {% with first_topic=all_topics|first %}
+                <div x-data="customSelect('topic', '{% if first_topic %}{{ first_topic.slug }}{% endif %}')">
+                    <label class="block text-white font-semibold mb-2">
+                        Thème <span class="text-red-400">*</span>
+                    </label>
+                    
+                    <!-- Select caché pour le formulaire -->
+                    <input type="hidden" name="topic" :value="selectedValue" required>
+                    
+                    <!-- Bouton personnalisé -->
+                    <button 
+                        type="button"
+                        @click="open = !open"
+                        @click.away="open = false"
+                        :class="open ? 'ring-2 ring-gold border-gold/50' : 'border-white/20'"
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border backdrop-blur-sm transition-all text-left flex items-center justify-between group hover:bg-white/15"
+                    >
+                        <div class="flex items-center space-x-3 flex-1 min-w-0">
+                            <template x-if="selectedTopic">
+                                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" 
+                                         :style="`background: ${selectedTopic.color};`">
+                                        <span x-text="selectedTopic.icon || '💬'" class="text-xl"></span>
+                                    </div>
+                                    <span class="text-white font-medium truncate" x-text="selectedTopic.name || 'Sélectionnez un thème...'"></span>
+                                </div>
+                            </template>
+                            <template x-if="!selectedTopic">
+                                <span class="text-white/60 font-medium">Sélectionnez un thème...</span>
+                            </template>
+                        </div>
+                        <svg class="w-5 h-5 text-white/60 group-hover:text-white transition-transform flex-shrink-0 ml-3" 
+                             :class="open ? 'rotate-180' : ''"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown -->
+                    <div 
+                        x-show="open"
+                        x-cloak
+                        x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0 transform scale-95 translate-y-2"
+                        x-transition:enter-end="opacity-100 transform scale-100 translate-y-0"
+                        x-transition:leave="transition ease-in duration-150"
+                        x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
+                        x-transition:leave-end="opacity-0 transform scale-95 translate-y-2"
+                        class="mt-2 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden z-50"
+                    >
+                        <!-- Recherche -->
+                        <div class="p-3 border-b border-white/10">
+                            <input 
+                                type="text"
+                                x-model="searchQuery"
+                                @input="filterOptions()"
+                                placeholder="Rechercher un thème..."
+                                class="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent backdrop-blur-sm text-sm"
+                            >
+                        </div>
+                        
+                        <!-- Liste des options -->
+                        <div class="max-h-64 overflow-y-auto custom-scrollbar">
+                            <template x-for="topic in filteredTopics" :key="topic.slug">
+                                <button
+                                    type="button"
+                                    @click="selectTopic(topic)"
+                                    :class="selectedValue === topic.slug ? 'bg-gold/20 border-gold/50' : 'hover:bg-white/10 border-transparent'"
+                                    class="w-full px-4 py-3 flex items-center space-x-3 border-l-4 transition-all text-left group"
+                                >
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" 
+                                         :style="`background: ${topic.color};`">
+                                        <span x-text="topic.icon || '💬'" class="text-xl"></span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-white font-medium group-hover:text-gold transition-colors" x-text="topic.name"></div>
+                                        <div class="text-white/50 text-xs mt-0.5" x-text="topic.description || ''"></div>
+                                    </div>
+                                    <template x-if="selectedValue === topic.slug">
+                                        <svg class="w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </template>
+                                </button>
+                            </template>
+                            <template x-if="filteredTopics.length === 0">
+                                <div class="px-4 py-8 text-center">
+                                    <p class="text-white/60 text-sm">Aucun thème trouvé</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <p class="text-gray-400 text-sm mt-1">Choisissez le thème auquel appartient ce groupe</p>
+                </div>
+                {% endwith %}
+                
+                <script>
+                    function customSelect(name, defaultValue = '') {
+                        return {
+                            open: false,
+                            selectedValue: defaultValue,
+                            selectedTopic: null,
+                            searchQuery: '',
+                            topics: [
+                                {% for topic in all_topics %}
+                                {
+                                    slug: '{{ topic.slug }}',
+                                    name: '{{ topic.name|escapejs }}',
+                                    icon: '{{ topic.icon|default:"💬"|escapejs }}',
+                                    color: '{{ topic.color|default:"#9333ea" }}',
+                                    description: '{{ topic.description|default:""|escapejs|truncatewords:10 }}'
+                                }{% if not forloop.last %},{% endif %}
+                                {% endfor %}
+                            ],
+                            filteredTopics: [],
+                            
+                            init() {
+                                this.filteredTopics = this.topics;
+                                if (this.selectedValue) {
+                                    this.selectedTopic = this.topics.find(t => t.slug === this.selectedValue);
+                                }
+                            },
+                            
+                            filterOptions() {
+                                if (!this.searchQuery.trim()) {
+                                    this.filteredTopics = this.topics;
+                                    return;
+                                }
+                                const query = this.searchQuery.toLowerCase();
+                                this.filteredTopics = this.topics.filter(topic => 
+                                    topic.name.toLowerCase().includes(query) ||
+                                    (topic.description && topic.description.toLowerCase().includes(query))
+                                );
+                            },
+                            
+                            selectTopic(topic) {
+                                this.selectedValue = topic.slug;
+                                this.selectedTopic = topic;
+                                this.open = false;
+                                this.searchQuery = '';
+                                this.filteredTopics = this.topics;
+                            }
+                        }
+                    }
+                </script>
+                
+                <!-- Nom du groupe -->
+                <div>
+                    <label for="group-name" class="block text-white font-semibold mb-2">
+                        Nom du groupe <span class="text-red-400">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="group-name"
+                        name="name" 
+                        required
+                        maxlength="100"
+                        placeholder="Ex: Groupe de discussion sur..."
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent backdrop-blur-sm transition-all"
+                    >
+                    <p class="text-gray-400 text-sm mt-1">Choisissez un nom clair et descriptif pour votre groupe</p>
+                </div>
+                
+                <!-- Description -->
+                <div>
+                    <label for="group-description" class="block text-white font-semibold mb-2">
+                        Description
+                    </label>
+                    <textarea 
+                        id="group-description"
+                        name="description" 
+                        rows="4"
+                        maxlength="500"
+                        placeholder="Décrivez brièvement votre groupe..."
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent resize-none backdrop-blur-sm transition-all"
+                    ></textarea>
+                    <p class="text-gray-400 text-sm mt-1">Une description aide les utilisateurs à comprendre le groupe</p>
+                </div>
+                
+                <!-- Option publique -->
+                <div class="flex items-center space-x-2">
+                    <input 
+                        type="checkbox" 
+                        name="is_public" 
+                        id="is_public" 
+                        checked
+                        class="w-4 h-4 rounded bg-white/10 border-white/20 text-gold focus:ring-gold focus:ring-2"
+                    >
+                    <label for="is_public" class="text-white/80 text-sm">Groupe public (visible par tous)</label>
+                </div>
+                
+                <!-- Image du groupe -->
+                <div>
+                    <label for="group-image" class="block text-white font-semibold mb-2">
+                        Image du groupe (optionnel)
+                    </label>
+                    <input 
+                        type="file" 
+                        id="group-image"
+                        name="image" 
+                        accept="image/*"
+                        class="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gold file:text-brand-primary hover:file:bg-yellow-400"
+                        onchange="syncImageFileToVisual(this)"
+                    >
+                    <p class="text-gray-400 text-sm mt-1">Ajoutez une image représentative de votre groupe</p>
                 </div>
                 
                 <!-- Boutons -->
@@ -121,9 +401,9 @@
                     </a>
                     <button 
                         type="submit"
-                        class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white font-semibold hover:shadow-glow hover:scale-105 transition-all btn-interactive"
+                        class="px-6 py-3 rounded-xl bg-gradient-gold text-brand-primary font-semibold hover:shadow-gold hover:scale-105 transition-all btn-interactive"
                     >
-                        Créer le sujet
+                        Créer le groupe
                     </button>
                 </div>
             </form>
@@ -144,40 +424,141 @@
 </div>
 
 <script>
-    // Mise à jour de l'aperçu en temps réel
-    const nameInput = document.getElementById('name');
-    const descriptionInput = document.getElementById('description');
-    const iconInput = document.getElementById('icon');
-    const colorInput = document.getElementById('color');
-    const colorTextInput = document.getElementById('color-text');
-    
-    const previewName = document.getElementById('preview-name');
-    const previewDescription = document.getElementById('preview-description');
-    const previewIcon = document.getElementById('preview-icon-text');
-    const previewIconContainer = document.getElementById('preview-icon');
-    
-    nameInput.addEventListener('input', function() {
-        previewName.textContent = this.value || 'Nom du sujet';
-    });
-    
-    descriptionInput.addEventListener('input', function() {
-        previewDescription.textContent = this.value || 'Description du sujet...';
-    });
-    
-    iconInput.addEventListener('input', function() {
-        previewIcon.textContent = this.value || '💬';
-    });
-    
-    colorInput.addEventListener('input', function() {
-        colorTextInput.value = this.value;
-        previewIconContainer.style.background = `linear-gradient(135deg, ${this.value} 0%, ${adjustColor(this.value, 20)} 50%, ${adjustColor(this.value, 40)} 100%)`;
-    });
-    
-    colorTextInput.addEventListener('input', function() {
-        if (/^#[0-9A-F]{6}$/i.test(this.value)) {
-            colorInput.value = this.value;
-            previewIconContainer.style.background = `linear-gradient(135deg, ${this.value} 0%, ${adjustColor(this.value, 20)} 50%, ${adjustColor(this.value, 40)} 100%)`;
+    // Fonction pour synchroniser les valeurs de l'onglet Visuel vers le formulaire group-form
+    function syncVisualToForm() {
+        const visualForm = document.getElementById('group-visual-form');
+        const groupForm = document.getElementById('group-form');
+        
+        if (!visualForm || !groupForm) return;
+        
+        // Copier icon et color
+        const iconInput = visualForm.querySelector('#group-icon');
+        const colorInput = visualForm.querySelector('#group-color');
+        const createNewTopicCheckbox = visualForm.querySelector('input[name="create_new_topic"]');
+        const newTopicNameInput = visualForm.querySelector('#new-topic-name');
+        const newTopicDescriptionInput = visualForm.querySelector('#new-topic-description');
+        
+        if (iconInput) {
+            const formIconInput = groupForm.querySelector('#group-form-icon');
+            if (formIconInput) formIconInput.value = iconInput.value || '💬';
         }
+        
+        if (colorInput) {
+            const formColorInput = groupForm.querySelector('#group-form-color');
+            if (formColorInput) formColorInput.value = colorInput.value || '#9333ea';
+        }
+        
+        // Copier les données de création de nouveau thème
+        if (createNewTopicCheckbox) {
+            const formCreateNewTopic = groupForm.querySelector('#group-form-create-new-topic');
+            if (formCreateNewTopic) {
+                formCreateNewTopic.value = createNewTopicCheckbox.checked ? 'on' : '';
+            }
+        }
+        
+        if (newTopicNameInput) {
+            const formNewTopicName = groupForm.querySelector('#group-form-new-topic-name');
+            if (formNewTopicName) formNewTopicName.value = newTopicNameInput.value || '';
+        }
+        
+        if (newTopicDescriptionInput) {
+            const formNewTopicDescription = groupForm.querySelector('#group-form-new-topic-description');
+            if (formNewTopicDescription) formNewTopicDescription.value = newTopicDescriptionInput.value || '';
+        }
+    }
+    
+    // Mise à jour de l'aperçu visuel en temps réel et synchronisation avec le formulaire
+    document.addEventListener('DOMContentLoaded', function() {
+        const groupNameInput = document.getElementById('group-name');
+        const groupDescriptionInput = document.getElementById('group-description');
+        const groupIconInput = document.getElementById('group-icon');
+        const groupColorInput = document.getElementById('group-color');
+        const groupColorTextInput = document.getElementById('group-color-text');
+        const createNewTopicCheckbox = document.querySelector('input[name="create_new_topic"]');
+        const newTopicNameInput = document.getElementById('new-topic-name');
+        const newTopicDescriptionInput = document.getElementById('new-topic-description');
+        
+        const groupPreviewName = document.getElementById('group-preview-name');
+        const groupPreviewDescription = document.getElementById('group-preview-description');
+        const groupPreviewIcon = document.getElementById('group-preview-icon-text');
+        const groupPreviewIconContainer = document.getElementById('group-preview-icon');
+        
+        // Synchroniser avant la soumission du formulaire
+        const groupForm = document.getElementById('group-form');
+        if (groupForm) {
+            groupForm.addEventListener('submit', function(e) {
+                syncVisualToForm();
+            });
+        }
+        
+        // Synchroniser en temps réel quand les valeurs changent
+        if (groupIconInput) {
+            groupIconInput.addEventListener('input', function() {
+                if (groupPreviewIcon) {
+                    groupPreviewIcon.textContent = this.value || '💬';
+                }
+                syncVisualToForm();
+            });
+        }
+        
+        if (groupColorInput) {
+            groupColorInput.addEventListener('input', function() {
+                if (groupColorTextInput) {
+                    groupColorTextInput.value = this.value;
+                }
+                if (groupPreviewIconContainer) {
+                    groupPreviewIconContainer.style.background = `linear-gradient(135deg, ${this.value} 0%, ${adjustColor(this.value, 20)} 50%, ${adjustColor(this.value, 40)} 100%)`;
+                }
+                syncVisualToForm();
+            });
+        }
+        
+        if (groupColorTextInput) {
+            groupColorTextInput.addEventListener('input', function() {
+                if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+                    if (groupColorInput) {
+                        groupColorInput.value = this.value;
+                    }
+                    if (groupPreviewIconContainer) {
+                        groupPreviewIconContainer.style.background = `linear-gradient(135deg, ${this.value} 0%, ${adjustColor(this.value, 20)} 50%, ${adjustColor(this.value, 40)} 100%)`;
+                    }
+                }
+                syncVisualToForm();
+            });
+        }
+        
+        if (createNewTopicCheckbox) {
+            createNewTopicCheckbox.addEventListener('change', function() {
+                syncVisualToForm();
+            });
+        }
+        
+        if (newTopicNameInput) {
+            newTopicNameInput.addEventListener('input', function() {
+                syncVisualToForm();
+            });
+        }
+        
+        if (newTopicDescriptionInput) {
+            newTopicDescriptionInput.addEventListener('input', function() {
+                syncVisualToForm();
+            });
+        }
+        
+        if (groupNameInput && groupPreviewName) {
+            groupNameInput.addEventListener('input', function() {
+                groupPreviewName.textContent = this.value || 'Nom du groupe';
+            });
+        }
+        
+        if (groupDescriptionInput && groupPreviewDescription) {
+            groupDescriptionInput.addEventListener('input', function() {
+                groupPreviewDescription.textContent = this.value || 'Description du groupe...';
+            });
+        }
+        
+        // Synchronisation initiale
+        syncVisualToForm();
     });
     
     function adjustColor(color, percent) {
@@ -189,6 +570,29 @@
         return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
             (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
             (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+    
+    // Synchronisation des fichiers image (les fichiers ne peuvent pas être copiés directement, donc on utilise un DataTransfer)
+    function syncImageFile(sourceInput) {
+        const targetInput = document.getElementById('group-image');
+        if (targetInput && sourceInput.files.length > 0) {
+            const dataTransfer = new DataTransfer();
+            for (let i = 0; i < sourceInput.files.length; i++) {
+                dataTransfer.items.add(sourceInput.files[i]);
+            }
+            targetInput.files = dataTransfer.files;
+        }
+    }
+    
+    function syncImageFileToVisual(sourceInput) {
+        const targetInput = document.getElementById('group-image-visual');
+        if (targetInput && sourceInput.files.length > 0) {
+            const dataTransfer = new DataTransfer();
+            for (let i = 0; i < sourceInput.files.length; i++) {
+                dataTransfer.items.add(sourceInput.files[i]);
+            }
+            targetInput.files = dataTransfer.files;
+        }
     }
 </script>
 {% endblock %}

@@ -13,6 +13,39 @@
     body {
         scroll-behavior: smooth;
     }
+    
+    /* Chat Popup Styles */
+    #chat-popup-overlay {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    #chat-popup-container {
+        animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px) scale(0.95);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+    
+    #chat-popup-iframe {
+        background: transparent;
+    }
     /* Skeleton Loader Styles */
     .skeleton-post {
         background: rgba(27, 38, 59, 0.6);
@@ -246,7 +279,7 @@
                                     </svg>
                                     <span>Audio</span>
                                 </span>
-                            </label>
+                        </label>
                         </div>
                         <button 
                             type="submit"
@@ -331,23 +364,23 @@
                 <div class="w-full bg-white/85 backdrop-blur-sm rounded-3xl shadow-xl p-4 hover:shadow-2xl transition-all duration-300 hover:scale-[1.01] stagger-item" data-post-id="{{ post.id }}">
                     <!-- Post Header -->
                     <div class="flex items-center space-x-3 mb-3">
-                        <a href="{% url 'users:profile' post.author.username %}">
+                            <a href="{% url 'users:profile' post.author.username %}">
                             <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 shadow-md border-2 border-white/50">
-                                {% if post.author.avatar %}
+                                    {% if post.author.avatar %}
                                     <img src="{{ post.author.avatar.url }}" alt="{{ post.author.username }}" class="w-full h-full object-cover" loading="lazy">
-                                {% else %}
+                                    {% else %}
                                     <div class="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
                                         <span class="text-white text-sm font-bold">{{ post.author.username|first|upper }}</span>
                                     </div>
-                                {% endif %}
-                            </div>
-                        </a>
+                                    {% endif %}
+                                </div>
+                            </a>
                         <div class="flex flex-col leading-tight flex-1 min-w-0">
                             <a href="{% url 'users:profile' post.author.username %}" class="font-semibold text-gray-900 hover:text-blue-600 transition-colors truncate">
-                                {{ post.author.username }}
-                            </a>
+                                    {{ post.author.username }}
+                                </a>
                             <span class="text-xs text-gray-500 truncate">@{{ post.author.username|lower }}</span>
-                        </div>
+                            </div>
                         <span class="text-xs text-gray-400 flex-shrink-0">{{ post.created_at|timesince }}</span>
                     </div>
                     
@@ -499,16 +532,65 @@
     </div>
     
     <!-- Floating Chat Button (FAB) -->
-    <a href="{% url 'chat:list' %}" class="fixed bottom-6 right-6 z-50 group">
+    <button 
+        id="chat-fab-button"
+        onclick="openChatPopup()"
+        class="fixed bottom-6 right-6 z-50 group"
+    >
         <div class="relative">
             <div class="absolute inset-0 bg-gradient-gold rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse"></div>
             <div class="relative w-14 h-14 bg-gradient-gold rounded-full flex items-center justify-center shadow-gold-lg hover:shadow-gold transition-all duration-300 hover:scale-110 hover:rotate-12">
                 <svg class="w-7 h-7 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
                 </svg>
+                <!-- Badge compteur de messages non lus -->
+                <span id="chat-unread-badge" class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-bold shadow-lg hidden">
+                    <span id="chat-unread-count">0</span>
+                </span>
             </div>
         </div>
-    </a>
+    </button>
+    
+    <!-- Chat Popup Overlay -->
+    <div 
+        id="chat-popup-overlay"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4"
+        onclick="closeChatPopup(event)"
+    >
+        <!-- Chat Popup Container -->
+        <div 
+            id="chat-popup-container"
+            class="w-full h-full max-w-6xl max-h-[90vh] bg-telegram-surface/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden flex flex-col transform scale-95 opacity-0 transition-all duration-300"
+            onclick="event.stopPropagation()"
+        >
+            <!-- Chat Header -->
+            <div class="flex items-center justify-between p-4 border-b border-white/10 bg-telegram-surface/98 backdrop-blur-xl">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gold via-yellow-400 to-gold flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <span class="text-xl">💬</span>
+                    </div>
+                    <h2 class="text-telegram-text font-semibold text-lg">Messages</h2>
+                </div>
+                <button 
+                    onclick="closeChatPopup()"
+                    class="p-2 rounded-lg hover:bg-white/10 text-telegram-text-secondary transition-colors"
+                    title="Fermer"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Chat Content (iframe) -->
+            <iframe 
+                id="chat-popup-iframe"
+                src="{% url 'chat:list' %}"
+                class="flex-1 w-full border-0"
+                frameborder="0"
+            ></iframe>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -800,6 +882,86 @@
             }
         }
     })();
+    
+    // Fonction pour mettre à jour le compteur de messages non lus
+    function updateChatUnreadCount() {
+        fetch('{% url "chat:unread_count" %}')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.getElementById('chat-unread-badge');
+                const count = document.getElementById('chat-unread-count');
+                
+                if (data.unread_count > 0) {
+                    badge.classList.remove('hidden');
+                    count.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                } else {
+                    badge.classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching unread count:', error);
+            });
+    }
+    
+    // Mettre à jour le compteur au chargement de la page
+    document.addEventListener('DOMContentLoaded', function() {
+        updateChatUnreadCount();
+        // Mettre à jour toutes les 10 secondes
+        setInterval(updateChatUnreadCount, 10000);
+    });
+    
+    // Chat Popup Functions
+    function openChatPopup() {
+        const overlay = document.getElementById('chat-popup-overlay');
+        const container = document.getElementById('chat-popup-container');
+        
+        if (overlay && container) {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            
+            // Trigger animation after a small delay to ensure display
+            setTimeout(() => {
+                container.classList.remove('scale-95', 'opacity-0');
+                container.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            // Prevent body scroll when popup is open
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    function closeChatPopup(event) {
+        // Si l'événement est passé et qu'on clique sur le container, ne pas fermer
+        if (event && event.target.id === 'chat-popup-container') {
+            return;
+        }
+        
+        const overlay = document.getElementById('chat-popup-overlay');
+        const container = document.getElementById('chat-popup-container');
+        
+        if (overlay && container) {
+            // Animation de fermeture
+            container.classList.remove('scale-100', 'opacity-100');
+            container.classList.add('scale-95', 'opacity-0');
+            
+            // Masquer après l'animation
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+    }
+    
+    // Fermer avec la touche Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('chat-popup-overlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
+                closeChatPopup();
+            }
+        }
+    });
 </script>
 {% endblock %}
 

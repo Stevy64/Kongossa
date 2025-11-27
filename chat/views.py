@@ -77,7 +77,10 @@ def chat_list(request):
     """Liste des conversations et groupes"""
     sidebar_data = get_chat_sidebar_data(request.user)
     
-    return render(request, 'chat/list.html', sidebar_data)
+    return render(request, 'chat/chat_list.html', {
+        'user': request.user,
+        **sidebar_data,
+    })
 
 
 @login_required
@@ -121,14 +124,15 @@ def chat_detail(request, conversation_id):
     except ImportError:
         pass
     
-    conversation_messages = conversation.messages.all()
+    conversation_messages = conversation.messages.all()[:50]  # Charger les 50 derniers messages initialement
     
     sidebar_data = get_chat_sidebar_data(request.user)
     
-    return render(request, 'chat/detail.html', {
+    return render(request, 'chat/chat_detail.html', {
         'conversation': conversation,
         'other_user': other_user,
         'messages': conversation_messages,
+        'user': request.user,
         **sidebar_data,
     })
 
@@ -218,38 +222,6 @@ def send_message(request, conversation_id):
     # Mettre à jour la date de modification de la conversation
     conversation.save()
     
-    # Envoyer le message via WebSocket à tous les participants
-    try:
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-        
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            room_group_name = f'chat_{conversation.id}'
-            async_to_sync(channel_layer.group_send)(
-                room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': {
-                        'id': message.id,
-                        'content': message.content,
-                        'sender': message.sender.username,
-                        'sender_id': message.sender.id,
-                        'sender_avatar': message.sender.avatar.url if message.sender.avatar else None,
-                        'created_at': message.created_at.isoformat(),
-                        'image': message.image.url if message.image else None,
-                        'video': message.video.url if message.video else None,
-                        'audio': message.audio.url if message.audio else None,
-                        'file': message.file.url if message.file else None,
-                        'file_name': message.file_name,
-                        'read_at': message.read_at.isoformat() if message.read_at else None,
-                    }
-                }
-            )
-    except Exception as e:
-        # Si le channel layer n'est pas disponible, continuer quand même
-        print(f"Error sending message via WebSocket: {e}")
-    
     return JsonResponse({
         'success': True,
         'message': {
@@ -285,34 +257,143 @@ def mark_message_read(request, message_id):
     if message.sender != request.user and not message.read_at:
         message.read_at = timezone.now()
         message.save()
-        
-        # Envoyer une mise à jour via WebSocket pour mettre à jour les doubles coches
-        try:
-            from channels.layers import get_channel_layer
-            from asgiref.sync import async_to_sync
-            
-            channel_layer = get_channel_layer()
-            if channel_layer:
-                room_group_name = f'chat_{message.conversation.id}'
-                async_to_sync(channel_layer.group_send)(
-                    room_group_name,
-                    {
-                        'type': 'message_read',
-                        'message_id': message.id,
-                        'read_at': message.read_at.isoformat(),
-                    }
-                )
-        except Exception as e:
-            print(f"Error sending read status via WebSocket: {e}")
     
     return JsonResponse({'success': True})
 
 
 @login_required
+def load_messages(request, conversation_id):
+    """Charger plus de messages (infinite scroll)"""
+    from django.http import JsonResponse
+    
+    conversation = get_object_or_404(
+        Conversation,
+        id=conversation_id,
+        participants=request.user
+    )
+    
+    before_id = request.GET.get('before')
+    limit = int(request.GET.get('limit', 20))
+    
+    messages_query = conversation.messages.all()
+    
+    if before_id:
+        messages_query = messages_query.filter(id__lt=before_id)
+    
+    messages = messages_query.order_by('-created_at')[:limit]
+    
+    messages_data = []
+    for msg in reversed(messages):  # Inverser pour avoir l'ordre chronologique
+        messages_data.append({
+            'id': msg.id,
+            'content': msg.content,
+            'sender': msg.sender.username,
+            'sender_id': msg.sender.id,
+            'sender_avatar': msg.sender.avatar.url if msg.sender.avatar else None,
+            'created_at': msg.created_at.isoformat(),
+            'image': msg.image.url if msg.image else None,
+            'video': msg.video.url if msg.video else None,
+            'audio': msg.audio.url if msg.audio else None,
+            'file': msg.file.url if msg.file else None,
+            'file_name': msg.file_name,
+            'read_at': msg.read_at.isoformat() if msg.read_at else None,
+        })
+    
+    return JsonResponse({
+        'messages': messages_data,
+        'has_more': len(messages) == limit
+    })
+
+
+@login_required
+def get_new_messages(request, conversation_id):
+    """Récupérer les nouveaux messages depuis un certain ID (pour polling)"""
+    conversation = get_object_or_404(
+        Conversation,
+        id=conversation_id,
+        participants=request.user
+    )
+    
+    last_message_id = request.GET.get('last_message_id')
+    
+    if last_message_id:
+        try:
+            last_message_id = int(last_message_id)
+            messages_query = conversation.messages.filter(id__gt=last_message_id)
+        except ValueError:
+            messages_query = conversation.messages.all()
+    else:
+        # Si pas de last_message_id, retourner les 10 derniers messages
+        messages_query = conversation.messages.all()
+    
+    messages = messages_query.order_by('created_at')
+    
+    messages_data = []
+    for msg in messages:
+        messages_data.append({
+            'id': msg.id,
+            'content': msg.content,
+            'sender': msg.sender.username,
+            'sender_id': msg.sender.id,
+            'sender_avatar': msg.sender.avatar.url if msg.sender.avatar else None,
+            'created_at': msg.created_at.isoformat(),
+            'image': msg.image.url if msg.image else None,
+            'video': msg.video.url if msg.video else None,
+            'audio': msg.audio.url if msg.audio else None,
+            'file': msg.file.url if msg.file else None,
+            'file_name': msg.file_name,
+            'read_at': msg.read_at.isoformat() if msg.read_at else None,
+        })
+    
+    return JsonResponse({
+        'messages': messages_data,
+        'count': len(messages_data)
+    })
+
+
+@login_required
+def get_unread_count(request):
+    """Récupérer le nombre total de messages non lus pour l'utilisateur"""
+    # Récupérer toutes les conversations de l'utilisateur
+    conversations = Conversation.objects.filter(participants=request.user)
+    
+    total_unread = 0
+    for conv in conversations:
+        other_user = conv.get_other_participant(request.user)
+        if other_user:
+            unread_count = conv.messages.filter(
+                sender=other_user,
+                read_at__isnull=True
+            ).count()
+            total_unread += unread_count
+    
+    return JsonResponse({
+        'unread_count': total_unread
+    })
+
+
+@login_required
 def contacts_list(request):
-    """Liste des contacts pour démarrer une conversation"""
-    # Récupérer tous les utilisateurs sauf l'utilisateur actuel
-    all_users = User.objects.exclude(id=request.user.id).order_by('username')
+    """Liste des contacts pour démarrer une conversation (uniquement les amis)"""
+    # Récupérer uniquement les amis de l'utilisateur
+    from users.models import Friendship
+    
+    # Récupérer toutes les amitiés où l'utilisateur est impliqué
+    friendships = Friendship.objects.filter(
+        Q(user1=request.user) | Q(user2=request.user),
+        status='accepted'
+    ).select_related('user1', 'user2')
+    
+    # Extraire les amis
+    friends = []
+    for friendship in friendships:
+        if friendship.user1 == request.user:
+            friends.append(friendship.user2)
+        else:
+            friends.append(friendship.user1)
+    
+    # Trier par username
+    friends = sorted(friends, key=lambda u: u.username)
     
     # Récupérer les conversations existantes pour marquer les contacts
     existing_conversations = Conversation.objects.filter(
@@ -326,9 +407,9 @@ def contacts_list(request):
         if other_user:
             users_with_conversations[other_user.id] = conv.id
     
-    # Préparer les données des contacts
+    # Préparer les données des contacts (uniquement les amis)
     contacts_data = []
-    for user in all_users:
+    for user in friends:
         contacts_data.append({
             'user': user,
             'has_conversation': user.id in users_with_conversations,

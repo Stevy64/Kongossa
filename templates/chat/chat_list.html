@@ -1,0 +1,49 @@
+{% extends 'chat/chat_base.html' %}
+{% load static %}
+{% load chat_filters %}
+
+{% block chat_title %}Messages - Kongossa{% endblock %}
+
+{% block sidebar_content %}
+    {% if all_items %}
+        {% for item in all_items %}
+            {% if item.type == 'conversation' and item.other_user %}
+                {% include 'chat/components/sidebar_item.html' with conversation=item.conversation other_user=item.other_user last_message=item.last_message unread_count=item.unread_count active=False %}
+            {% elif item.type == 'group' %}
+                <!-- Group item (à implémenter si nécessaire) -->
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="empty-state p-8">
+            <div class="w-16 h-16 rounded-full bg-telegram-surface-light/50 mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-8 h-8 text-telegram-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
+                </svg>
+            </div>
+            <p class="text-telegram-text-secondary font-semibold mb-2">Aucune conversation</p>
+            <p class="text-telegram-text-secondary text-sm mb-4">Commencez à discuter avec vos contacts</p>
+            <a href="{% url 'chat:contacts' %}" class="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-telegram-blue hover:bg-telegram-blue-light text-white font-semibold transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Nouvelle conversation</span>
+            </a>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block messages_content %}
+    <div class="flex items-center justify-center h-full">
+        <div class="text-center">
+            <p class="text-telegram-text-secondary text-lg font-semibold mb-2">Sélectionnez une conversation</p>
+            <p class="text-telegram-text-secondary text-sm">Choisissez une conversation dans la liste pour commencer à discuter</p>
+        </div>
+    </div>
+{% endblock %}
+
+{% block input_content %}
+    <div class="flex items-center justify-center h-full">
+        <p class="text-telegram-text-secondary text-sm">Sélectionnez une conversation pour envoyer un message</p>
+    </div>
+{% endblock %}
+

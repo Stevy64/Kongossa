@@ -34,9 +34,6 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 # ============================================================================
 
 INSTALLED_APPS = [
-    # Serveur ASGI pour Django Channels (WebSockets)
-    'daphne',
-    
     # Applications Django par défaut
     'django.contrib.admin',           # Interface d'administration
     'django.contrib.auth',             # Système d'authentification
@@ -259,6 +256,10 @@ STORY_EXPIRY_HOURS = int(os.environ.get('STORY_EXPIRY_HOURS', 24))
 # CONFIGURATION DE SÉCURITÉ (Production)
 # ============================================================================
 
+# X-Frame-Options pour permettre l'affichage dans un iframe (pour le popup chat)
+# En développement et production, on utilise SAMEORIGIN pour permettre l'iframe sur le même domaine
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 if not DEBUG:
     # Sécurité HTTPS en production
     SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
@@ -266,7 +267,6 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
     
     # Headers de sécurité
     SECURE_HSTS_SECONDS = 31536000  # 1 an

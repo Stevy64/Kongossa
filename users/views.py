@@ -153,7 +153,6 @@ def profile(request, username):
     try:
         # Nettoyer le username (enlever les espaces)
         username = username.strip()
-        print(f"DEBUG profile - Recherche de l'utilisateur avec username: '{username}'")
         
         if not username:
             messages.error(request, 'Nom d\'utilisateur invalide')
@@ -162,13 +161,10 @@ def profile(request, username):
         # Essayer de trouver l'utilisateur
         try:
             profile_user = User.objects.get(username=username)
-            print(f"DEBUG profile - Utilisateur trouvé: ID={profile_user.id}, Username='{profile_user.username}'")
         except User.DoesNotExist:
-            print(f"DEBUG profile - Utilisateur NON trouvé avec username: '{username}'")
             # Si l'utilisateur n'est pas trouvé, vérifier si c'est l'utilisateur connecté qui n'a pas de username
             if request.user.is_authenticated:
                 request.user.refresh_from_db()
-                print(f"DEBUG profile - User connecté: ID={request.user.id}, Username='{request.user.username}'")
                 if not request.user.username or request.user.username.strip() == '':
                     # Rediriger vers la page d'édition pour générer un username
                     messages.info(request, 'Veuillez d\'abord compléter votre profil pour générer un nom d\'utilisateur.')
@@ -239,7 +235,6 @@ def edit_profile(request):
     # Récupérer l'utilisateur et rafraîchir depuis la DB
     user = request.user
     user.refresh_from_db()
-    print(f"DEBUG edit_profile - User ID: {user.id}, Username: '{user.username}', Email: '{user.email}'")
     
     if request.method == 'POST':
         try:
@@ -359,18 +354,14 @@ def edit_profile(request):
             
         except Exception as e:
             import traceback
-            print(f"Erreur lors de la mise à jour du profil: {str(e)}")
-            print(traceback.format_exc())
             messages.error(request, f'Erreur lors de la mise à jour du profil: {str(e)}')
             return render(request, 'users/edit_profile.html', {'user': user})
     
     # S'assurer que l'utilisateur a un username avant d'afficher le formulaire
     # Rafraîchir depuis la base de données
     user.refresh_from_db()
-    print(f"DEBUG edit_profile GET - User ID: {user.id}, Username: '{user.username}', Email: '{user.email}'")
     
     if not user.username or user.username.strip() == '':
-        print(f"DEBUG - Génération d'un username pour l'utilisateur {user.id}")
         # Générer un username si nécessaire
         import re
         if user.email:
@@ -400,7 +391,6 @@ def edit_profile(request):
             user.save()
     
     user.refresh_from_db()
-    print(f"DEBUG edit_profile GET final - User ID: {user.id}, Username: '{user.username}'")
     return render(request, 'users/edit_profile.html', {'user': user})
 
 

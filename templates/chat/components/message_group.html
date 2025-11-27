@@ -1,0 +1,19 @@
+{% load chat_filters %}
+<div class="message-group {% if group_messages.0.sender == user %}sent{% else %}received{% endif %}" data-group-date="{{ group_messages.0.created_at|date:'Y-m-d' }}">
+    {% if not group_messages.0.sender == user %}
+        <div class="message-avatar">
+            {% if group_messages.0.sender.avatar %}
+                <img src="{{ group_messages.0.sender.avatar.url }}" alt="{{ group_messages.0.sender.username }}">
+            {% else %}
+                <span>{{ group_messages.0.sender.username|first|upper }}</span>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <div class="flex flex-col gap-0.5">
+        {% for message in group_messages %}
+            {% include 'chat/components/message_bubble.html' with message=message %}
+        {% endfor %}
+    </div>
+</div>
+

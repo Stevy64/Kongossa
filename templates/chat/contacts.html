@@ -1,7 +1,35 @@
-{% extends 'base.html' %}
+{% extends 'chat/chat_base.html' %}
 {% load chat_filters %}
 
-{% block title %}Contacts - Kongossa{% endblock %}
+{% block chat_title %}Nouvelle conversation - Kongossa{% endblock %}
+
+{% block chat_header_content %}
+<div class="flex items-center space-x-3">
+    <!-- Bouton retour -->
+    <button 
+        onclick="goBack(); return false;"
+        class="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 flex items-center justify-center mr-2"
+        title="Retour"
+    >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+    </button>
+    <div>
+        <h3 class="text-telegram-text font-semibold">Nouvelle conversation</h3>
+        <p class="text-telegram-text-secondary text-xs">Sélectionnez un ami pour commencer</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block messages_content %}
+<div class="flex items-center justify-center h-full">
+    <div class="text-center px-4">
+        <p class="text-telegram-text font-semibold text-lg mb-2">Vous n'avez encore aucun ami</p>
+        <p class="text-telegram-text-secondary text-sm">Faites-vous des amis, kongosser c'est mieux à plusieurs 😊</p>
+    </div>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <!-- Masquer les messages d'alerte dans la messagerie -->
@@ -349,6 +377,16 @@
         <!-- Header -->
         <header class="glass-card tab-bar border-b border-white/20 p-4">
             <div class="flex items-center space-x-3">
+                <!-- Bouton retour -->
+                <button 
+                    onclick="goBack(); return false;"
+                    class="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all duration-200 flex items-center justify-center"
+                    title="Retour"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
                 <h1 class="text-white text-xl font-bold">Nouvelle conversation</h1>
             </div>
             
@@ -367,9 +405,17 @@
         </header>
         
         <!-- Liste des contacts -->
-        <div class="flex-1 overflow-y-auto p-4">
+        <div class="flex-1 overflow-y-auto p-4 relative">
+            <!-- Message central par défaut -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                <div class="text-center px-4">
+                    <p class="text-telegram-text font-semibold text-lg mb-2">Vous n'avez encore aucun ami</p>
+                    <p class="text-telegram-text-secondary text-sm">Faites-vous des amis, kongosser c'est mieux à plusieurs 😊</p>
+                </div>
+            </div>
+            
             {% if contacts %}
-                <div class="space-y-2">
+                <div class="space-y-2 relative z-10">
                     {% for contact_data in contacts %}
                         <div 
                             x-show="searchQuery === '' || '{{ contact_data.user.username|lower }}'.includes(searchQuery.toLowerCase()) || {% if contact_data.user.bio %}'{{ contact_data.user.bio|lower }}'.includes(searchQuery.toLowerCase()){% else %}false{% endif %}"
@@ -414,16 +460,91 @@
                     {% endfor %}
             </div>
         {% else %}
-                <div class="text-center py-12">
-                    <svg class="w-16 h-16 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            <div class="text-center py-12 px-4">
+                <svg class="w-20 h-20 text-telegram-text-secondary mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                </svg>
+                <p class="text-telegram-text font-semibold text-lg mb-2">Vous n'avez encore aucun ami</p>
+                <p class="text-telegram-text-secondary text-sm mb-6">Faites-vous des amis, kongosser c'est mieux à plusieurs 😊</p>
+                <a 
+                    href="{% url 'forum:feed' %}" 
+                    class="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-telegram-blue hover:bg-telegram-blue-light text-white font-semibold transition-all duration-200"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <p class="text-white/80 font-semibold mb-2">Aucun contact disponible</p>
-                    <p class="text-white/60 text-sm">Les autres utilisateurs apparaîtront ici</p>
+                    <span>Découvrir des utilisateurs</span>
+                </a>
             </div>
         {% endif %}
     </div>
     </main>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function goBack() {
+        // Si on est dans un iframe (popup chatbot)
+        if (window.parent && window.parent !== window) {
+            // Essayer de fermer le popup via postMessage
+            try {
+                window.parent.postMessage({type: 'closeContacts'}, '*');
+            } catch(e) {
+                console.error('Error sending postMessage:', e);
+            }
+            // Fallback: rediriger vers la liste des conversations
+            setTimeout(() => {
+                window.location.href = '{% url 'chat:list' %}';
+            }, 100);
+        } else {
+            // Navigation normale
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '{% url 'chat:list' %}';
+            }
+        }
+    }
+    
+    // Fonction pour gérer la visibilité du message par défaut
+    function updateDefaultMessageVisibility() {
+        const defaultMessage = document.getElementById('default-message');
+        if (!defaultMessage) return;
+        
+        // Vérifier s'il y a des contacts visibles
+        const visibleContacts = Array.from(document.querySelectorAll('[x-show*="searchQuery"]')).filter(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && el.offsetParent !== null;
+        });
+        
+        // Afficher le message seulement s'il n'y a pas de contacts visibles
+        if (visibleContacts.length === 0) {
+            defaultMessage.classList.remove('hidden');
+            defaultMessage.style.pointerEvents = 'auto';
+        } else {
+            defaultMessage.classList.add('hidden');
+            defaultMessage.style.pointerEvents = 'none';
+        }
+    }
+    
+    // Observer les changements dans la recherche
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('input[x-model="searchQuery"]');
+        if (searchInput) {
+            // Utiliser Alpine.js pour observer les changements
+            const observer = new MutationObserver(updateDefaultMessageVisibility);
+            observer.observe(document.body, { childList: true, subtree: true });
+            
+            // Écouter les changements de valeur
+            searchInput.addEventListener('input', function() {
+                setTimeout(updateDefaultMessageVisibility, 100);
+            });
+        }
+        
+        // Initialiser la visibilité
+        setTimeout(updateDefaultMessageVisibility, 200);
+    });
+</script>
 {% endblock %}
 

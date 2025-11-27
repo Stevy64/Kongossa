@@ -357,9 +357,9 @@
     
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Barre de recherche moderne -->
-        <div class="mb-8 search-container bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-3xl p-5 sm:p-6 border border-white/30 shadow-2xl">
+        <div class="mb-8 search-container bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-3xl p-5 sm:p-6 border border-white/30 shadow-2xl relative" style="z-index: 10; position: relative;" x-data="{ searchExpanded: {% if search_query or selected_topic %}true{% else %}false{% endif %} }">
             <form method="get" action="{% url 'forum:topics_list' %}" class="space-y-4">
-                <div class="flex flex-col lg:flex-row gap-4">
+                <div class="flex flex-col gap-4">
                     <!-- Search Input avec icône -->
                     <div class="flex-1 relative group">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -373,64 +373,226 @@
                             value="{{ search_query }}"
                             placeholder="Rechercher des groupes par nom, description..." 
                             class="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold/50 transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:bg-white/25"
+                            @focus="searchExpanded = true"
+                            @click="searchExpanded = true"
                         />
                     </div>
                     
-                    <!-- Topic Filter avec icône -->
-                    <div class="lg:w-72 relative group">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white/60 group-focus-within:text-gold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                            </svg>
-                        </div>
-                        <select 
-                            name="topic" 
-                            class="w-full pl-12 pr-10 py-3.5 sm:py-4 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold/50 transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:bg-white/25 appearance-none cursor-pointer"
-                            style="background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M6 9l6 6 6-6%22/></svg>'); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.5rem;"
-                        >
-                            <option value="" class="bg-brand-surface text-white">Tous les thèmes</option>
-                            {% for topic in all_topics %}
-                                <option value="{{ topic.slug }}" {% if selected_topic == topic.slug %}selected{% endif %} class="bg-brand-surface text-white">
-                                    {{ topic.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- Search Button -->
-                    <button 
-                        type="submit"
-                        name="show"
-                        value="groups"
-                        class="px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-gold via-yellow-400 to-gold text-brand-navy font-bold rounded-2xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 min-w-[140px] sm:min-w-[160px]"
+                    <!-- Section des filtres (rétractable) -->
+                    <div 
+                        x-show="searchExpanded"
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0 max-h-0"
+                        x-transition:enter-end="opacity-100 max-h-[500px]"
+                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave-start="opacity-100 max-h-[500px]"
+                        x-transition:leave-end="opacity-0 max-h-0"
+                        class="overflow-hidden"
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <span class="text-sm sm:text-base">Rechercher</span>
-                    </button>
-                    
-                    <!-- Clear Button (si recherche active) -->
-                    {% if search_query or selected_topic %}
-                    <a href="{% url 'forum:topics_list' %}" class="px-6 sm:px-8 py-3.5 sm:py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-2xl transition-all duration-300 border-2 border-white/30 hover:border-white/50 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 min-w-[120px] sm:min-w-[140px]">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                        <span class="text-sm sm:text-base">Effacer</span>
-                    </a>
-                    {% endif %}
+                        <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                            <!-- Topic Filter avec icône -->
+                            <div class="w-full sm:flex-1 sm:max-w-[320px] lg:max-w-[360px] relative" x-data="customSelectFilter('{{ selected_topic|default:"" }}')" style="z-index: 9999; position: relative;">
+                        <!-- Select caché pour le formulaire -->
+                        <input type="hidden" name="topic" :value="selectedValue">
+                        
+                        <!-- Bouton personnalisé -->
+                        <button 
+                            type="button"
+                            @click="open = !open"
+                            @click.away="open = false"
+                            :class="open ? 'ring-2 ring-gold border-gold/50' : 'border-white/20'"
+                            class="w-full px-5 py-4 rounded-2xl bg-white/10 border backdrop-blur-sm transition-all text-left flex items-center justify-between group hover:bg-white/15"
+                        >
+                            <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                <template x-if="selectedTopic">
+                                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" 
+                                             :style="`background: ${selectedTopic.color};`">
+                                            <span x-text="selectedTopic.icon || '💬'" class="text-xl"></span>
+                                        </div>
+                                        <span class="text-white font-medium truncate" x-text="selectedTopic.name || 'Sélectionnez un thème...'"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!selectedTopic">
+                                    <span class="text-white/60 font-medium">Tous les thèmes</span>
+                                </template>
+                            </div>
+                            <svg class="w-5 h-5 text-white/60 group-hover:text-white transition-transform flex-shrink-0 ml-3" 
+                                 :class="open ? 'rotate-180' : ''"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        
+                        <!-- Dropdown -->
+                        <div 
+                            x-show="open"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-200"
+                            x-transition:enter-start="opacity-0 transform scale-95 translate-y-2"
+                            x-transition:enter-end="opacity-100 transform scale-100 translate-y-0"
+                            x-transition:leave="transition ease-in duration-150"
+                            x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
+                            x-transition:leave-end="opacity-0 transform scale-95 translate-y-2"
+                            class="mt-2 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden z-50"
+                        >
+                            <!-- Recherche -->
+                            <div class="p-3 border-b border-white/10">
+                                <input 
+                                    type="text"
+                                    x-model="searchQuery"
+                                    @input="filterOptions()"
+                                    placeholder="Rechercher un thème..."
+                                    class="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent backdrop-blur-sm text-sm"
+                                >
+                            </div>
+                            
+                            <!-- Liste des options -->
+                            <div class="max-h-64 overflow-y-auto custom-scrollbar">
+                                <!-- Option "Tous les thèmes" -->
+                                <button
+                                    type="button"
+                                    @click="selectTopic(null)"
+                                    :class="!selectedValue ? 'bg-gold/20 border-gold/50' : 'hover:bg-white/10 border-transparent'"
+                                    class="w-full px-4 py-3 flex items-center space-x-3 border-l-4 transition-all text-left group"
+                                >
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-purple-500 to-pink-500">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-white font-medium group-hover:text-gold transition-colors">Tous les thèmes</div>
+                                    </div>
+                                    <template x-if="!selectedValue">
+                                        <svg class="w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </template>
+                                </button>
+                                
+                                <template x-for="topic in filteredTopics" :key="topic.slug">
+                                    <button
+                                        type="button"
+                                        @click="selectTopic(topic)"
+                                        :class="selectedValue === topic.slug ? 'bg-gold/20 border-gold/50' : 'hover:bg-white/10 border-transparent'"
+                                        class="w-full px-4 py-3 flex items-center space-x-3 border-l-4 transition-all text-left group"
+                                    >
+                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" 
+                                             :style="`background: ${topic.color};`">
+                                            <span x-text="topic.icon || '💬'" class="text-xl"></span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-white font-medium group-hover:text-gold transition-colors" x-text="topic.name"></div>
+                                            <div class="text-white/50 text-xs mt-0.5" x-text="topic.description || ''"></div>
+                                        </div>
+                                        <template x-if="selectedValue === topic.slug">
+                                            <svg class="w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </template>
+                                    </button>
+                                </template>
+                                <template x-if="filteredTopics.length === 0 && searchQuery">
+                                    <div class="px-4 py-8 text-center">
+                                        <p class="text-white/60 text-sm">Aucun thème trouvé</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <script>
+                            function customSelectFilter(defaultValue = '') {
+                                return {
+                                    open: false,
+                                    selectedValue: defaultValue,
+                                    selectedTopic: null,
+                                    searchQuery: '',
+                                    topics: [
+                                        {% for topic in all_topics %}
+                                        {
+                                            slug: '{{ topic.slug }}',
+                                            name: '{{ topic.name|escapejs }}',
+                                            icon: '{{ topic.icon|default:"💬"|escapejs }}',
+                                            color: '{{ topic.color|default:"#9333ea" }}',
+                                            description: '{{ topic.description|default:""|escapejs|truncatewords:10 }}'
+                                        }{% if not forloop.last %},{% endif %}
+                                        {% endfor %}
+                                    ],
+                                    filteredTopics: [],
+                                    
+                                    init() {
+                                        this.filteredTopics = this.topics;
+                                        if (this.selectedValue) {
+                                            this.selectedTopic = this.topics.find(t => t.slug === this.selectedValue);
+                                        }
+                                    },
+                                    
+                                    filterOptions() {
+                                        if (!this.searchQuery.trim()) {
+                                            this.filteredTopics = this.topics;
+                                            return;
+                                        }
+                                        const query = this.searchQuery.toLowerCase();
+                                        this.filteredTopics = this.topics.filter(topic => 
+                                            topic.name.toLowerCase().includes(query) ||
+                                            (topic.description && topic.description.toLowerCase().includes(query))
+                                        );
+                                    },
+                                    
+                                    selectTopic(topic) {
+                                        if (topic) {
+                                            this.selectedValue = topic.slug;
+                                            this.selectedTopic = topic;
+                                        } else {
+                                            this.selectedValue = '';
+                                            this.selectedTopic = null;
+                                        }
+                                        this.open = false;
+                                        this.searchQuery = '';
+                                        this.filteredTopics = this.topics;
+                                    }
+                                }
+                            }
+                        </script>
+                            </div>
+                            
+                            <!-- Search Button -->
+                            <button 
+                                type="submit"
+                                name="show"
+                                value="groups"
+                                class="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-gold via-yellow-400 to-gold text-brand-navy font-bold rounded-2xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:min-w-[140px] lg:min-w-[160px] flex-shrink-0"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                <span class="text-sm sm:text-base">Rechercher</span>
+                            </button>
+                            
+                            <!-- Clear Button (si recherche active) -->
+                            {% if search_query or selected_topic %}
+                            <a href="{% url 'forum:topics_list' %}" class="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-2xl transition-all duration-300 border-2 border-white/30 hover:border-white/50 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:min-w-[120px] lg:min-w-[140px] flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                <span class="text-sm sm:text-base">Effacer</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
 
-        <!-- Résultats de recherche de groupes / Groupes abonnés -->
+        <!-- Résultats de recherche de groupes / Groupes disponibles -->
         {% if show_groups and groups %}
             <div class="mb-8">
                 <h2 class="text-white text-xl font-semibold mb-6">
                     {% if search_query %}
                         Groupes trouvés ({{ groups.count }})
                     {% else %}
-                        Mes groupes ({{ groups.count }})
+                        Groupes disponibles ({{ groups.count }})
                     {% endif %}
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -148,32 +148,37 @@
         flex: 1;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 1rem;
+        padding: 0.5rem 0.75rem;
         background: rgba(255, 255, 255, 0.05);
         min-height: 0;
     }
     
     @media (min-width: 768px) {
         .messages-container {
-            padding: 1.5rem;
+            padding: 0.75rem 1rem;
         }
     }
     
     /* Bulles de message */
     .message-bubble {
-        max-width: 85%;
+        max-width: 95%;
         word-wrap: break-word;
         word-break: break-word;
-        margin-bottom: 0.75rem;
         animation: fadeIn 0.3s ease-in;
-        padding: 0.75rem 1rem;
-        line-height: 1.5;
+        line-height: 1.4;
+        font-size: 0.9375rem;
     }
     
     @media (min-width: 768px) {
         .message-bubble {
-            max-width: 70%;
+            max-width: 90%;
             padding: 0.875rem 1.25rem;
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        .message-bubble {
+            max-width: 88%;
         }
     }
     
@@ -188,70 +193,35 @@
         }
     }
     
-    /* Message envoyé - Vert élégant avec meilleur contraste */
+    /* Message envoyé - Style WhatsApp/Telegram */
     .message-sent {
         margin-left: auto;
-        background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%);
-        color: #0D1B2A;
-        border-radius: 20px 20px 6px 20px;
-        box-shadow: 
-            0 4px 16px rgba(16, 185, 129, 0.35),
-            0 2px 8px rgba(16, 185, 129, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(74, 222, 128, 0.4);
+        margin-right: 0 !important;
+        background: linear-gradient(135deg, #3390EC 0%, #5EB5F7 100%);
+        color: white;
+        border-radius: 7.5px 7.5px 0 7.5px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         font-weight: 400;
         position: relative;
+        align-self: flex-end;
+        padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+        margin-bottom: 0.125rem;
     }
     
-    .message-sent::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-        border-radius: inherit;
-        pointer-events: none;
-    }
-    
-    .message-sent * {
-        position: relative;
-        z-index: 1;
-        color: #0D1B2A;
-    }
-    
-    /* Message reçu - Bleu élégant avec meilleur contraste */
+    /* Message reçu - Style WhatsApp/Telegram */
     .message-received {
+        margin-left: 0 !important;
         margin-right: auto;
-        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%);
-        color: #FFFFFF;
-        border-radius: 20px 20px 20px 6px;
-        box-shadow: 
-            0 4px 16px rgba(59, 130, 246, 0.35),
-            0 2px 8px rgba(59, 130, 246, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(96, 165, 250, 0.4);
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        color: #E4E6EB;
+        border-radius: 0 7.5px 7.5px 7.5px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         font-weight: 400;
         position: relative;
-    }
-    
-    .message-received::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
-        border-radius: inherit;
-        pointer-events: none;
-    }
-    
-    .message-received * {
-        position: relative;
-        z-index: 1;
-        color: #FFFFFF;
+        align-self: flex-start;
+        padding: 0.5rem 0.625rem 0.375rem 0.625rem;
+        margin-bottom: 0.125rem;
     }
     
     /* Amélioration du texte dans les bulles */
@@ -944,217 +914,111 @@
     const currentUserId = {{ user.id }};
     let typingTimeout;
     let isTyping = false;
-    let chatSocket = null;
-    let reconnectAttempts = 0;
-    let maxReconnectAttempts = 10;
-    let reconnectDelay = 1000; // Commence à 1 seconde
-    let isReconnecting = false;
+    let pollingInterval = null;
+    let lastMessageId = null;
     
     const messagesContainer = document.getElementById('messages-container');
     const typingIndicator = document.getElementById('typing-indicator');
     const messageInput = document.getElementById('chat-message-input');
     
-    // Indicateur de connexion discret (comme WhatsApp/Instagram)
-    let connectionIndicator = null;
-    
-    // Fonction pour créer l'indicateur de connexion
-    function createConnectionIndicator() {
-        if (connectionIndicator) return connectionIndicator;
-        
-        connectionIndicator = document.createElement('div');
-        connectionIndicator.id = 'connection-indicator';
-        connectionIndicator.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 opacity-0 pointer-events-none';
-        connectionIndicator.style.display = 'none';
-        document.body.appendChild(connectionIndicator);
-        return connectionIndicator;
-    }
-    
-    // Fonction pour afficher l'état de connexion
-    function showConnectionStatus(status, message) {
-        const indicator = createConnectionIndicator();
-        indicator.className = `fixed top-16 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 ${status === 'connected' ? 'bg-green-500/90 text-white' : status === 'connecting' ? 'bg-yellow-500/90 text-white' : 'bg-red-500/90 text-white'}`;
-        indicator.textContent = message;
-        indicator.style.display = 'block';
-        indicator.style.opacity = '1';
-        
-        if (status === 'connected') {
-            setTimeout(() => {
-                indicator.style.opacity = '0';
-                setTimeout(() => {
-                    indicator.style.display = 'none';
-                }, 300);
-            }, 2000);
+    // Fonction pour obtenir le dernier message ID
+    function updateLastMessageId() {
+        const messages = messagesContainer?.querySelectorAll('[data-message-id]');
+        if (messages && messages.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            const messageId = lastMessage.getAttribute('data-message-id');
+            if (messageId && !messageId.toString().startsWith('temp_')) {
+                lastMessageId = parseInt(messageId);
+            }
         }
     }
     
-    // Fonction pour connecter le WebSocket avec reconnexion automatique
-    function connectChatSocket() {
-        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            return; // Déjà connecté
-        }
-        
-        // Fermer l'ancien socket s'il existe
-        if (chatSocket) {
-            chatSocket.onclose = null;
-            chatSocket.onerror = null;
-            chatSocket.close();
-        }
-        
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = wsProtocol + '//' + window.location.host + '/ws/chat/' + conversationId + '/';
+    // Fonction de polling pour récupérer les nouveaux messages
+    async function pollNewMessages() {
+        if (!conversationId) return;
         
         try {
-            chatSocket = new WebSocket(wsUrl);
+            const url = `/chat/${conversationId}/new-messages/`;
+            const params = lastMessageId ? `?last_message_id=${lastMessageId}` : '';
             
-            chatSocket.onopen = function(e) {
-                console.log('Chat socket connected');
-                reconnectAttempts = 0;
-                reconnectDelay = 1000;
-                isReconnecting = false;
-                // Masquer l'indicateur de reconnexion si présent
-                const indicator = document.getElementById('connection-indicator');
-                if (indicator) {
-                    indicator.style.opacity = '0';
-                    setTimeout(() => {
-                        indicator.style.display = 'none';
-                    }, 300);
+            const response = await fetch(url + params, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
-                // Afficher brièvement "Connecté" puis masquer
-                showConnectionStatus('connected', 'Connecté');
-            };
+            });
             
-            chatSocket.onmessage = function(e) {
-                try {
-                    // Protection contre les erreurs de parsing JSON
-                    let data;
-                    try {
-                        data = JSON.parse(e.data);
-                    } catch (parseError) {
-                        console.error('Error parsing WebSocket message:', parseError, e.data);
-                        return; // Ignorer les messages invalides sans recharger
-                    }
-                    
-                    if (data.type === 'chat_message') {
-                        const message = data.message;
-                        if (!message || !message.id) {
-                            console.warn('Invalid message format received');
-                            return;
-                        }
-                        
-                        const isOwnMessage = message.sender_id === currentUserId;
-                        
-                        // Vérifier si le message n'existe pas déjà (éviter les doublons)
-                        const existingMessage = document.querySelector(`[data-message-id="${message.id}"]`);
-                        if (existingMessage) {
-                            return; // Message déjà affiché
-                        }
-                        
-                        addMessageToDOM(message, isOwnMessage);
-                        
-                        // Si c'est un message reçu, marquer comme lu automatiquement
-                        if (!isOwnMessage) {
-                            // Marquer le message comme lu via une requête HTTP silencieuse
-                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
-                                            document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-                            fetch(`/chat/message/${message.id}/mark-read/`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRFToken': csrfToken,
-                                    'Content-Type': 'application/json',
-                                },
-                            }).catch(err => {
-                                // Ignorer les erreurs silencieusement
-                                console.log('Could not mark message as read:', err);
-                            });
-                        }
-                        
-                        // Hide typing indicator if it was showing
-                        if (typingIndicator) {
-                            typingIndicator.classList.remove('active');
-                        }
-                    } else if (data.type === 'user_typing') {
-                        if (data.user_id !== currentUserId && typingIndicator) {
-                            typingIndicator.classList.add('active');
-                            scrollToBottomIfNeeded(messagesContainer);
-                        }
-                    } else if (data.type === 'user_stopped_typing') {
-                        if (data.user_id !== currentUserId && typingIndicator) {
-                            typingIndicator.classList.remove('active');
-                        }
-                    } else if (data.type === 'message_read') {
-                        // Mettre à jour les doubles coches pour un message lu
-                        const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
-                        if (messageElement) {
-                            const readIcon = messageElement.querySelector('.read-status-icon');
-                            if (readIcon) {
-                                readIcon.innerHTML = '<svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854 2.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path d="M15.854 1.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 1 .708-.708L8.5 8.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>';
-                                readIcon.classList.remove('text-gray-400');
-                                readIcon.classList.add('text-blue-500');
-                            }
-                        }
-                    }
-                } catch (error) {
-                    // Capturer toutes les erreurs sans recharger
-                    console.error('Error handling WebSocket message:', error);
-                    // Ne pas recharger - juste logger l'erreur
-                }
-            };
-            
-            chatSocket.onerror = function(e) {
-                console.error('Chat socket error:', e);
-                // Ne pas recharger - juste afficher l'erreur et laisser onclose gérer la reconnexion
-                if (!isReconnecting) {
-                    showConnectionStatus('error', 'Erreur de connexion');
-                }
-                // La reconnexion sera gérée par onclose
-            };
-            
-            chatSocket.onclose = function(e) {
-                console.log('Chat socket closed', e.code, e.reason);
+            if (response.ok) {
+                const data = await response.json();
                 
-                // Ne JAMAIS recharger la page - toujours essayer de reconnecter
-                // Même après maxReconnectAttempts, on continue à essayer (comme WhatsApp/Instagram)
-                if (e.code !== 1000) {
-                    isReconnecting = true;
-                    
-                    // Si on n'a pas encore atteint le max, incrémenter
-                    if (reconnectAttempts < maxReconnectAttempts) {
-                        reconnectAttempts++;
-                    }
-                    
-                    // Afficher l'indicateur de reconnexion seulement la première fois ou toutes les 5 tentatives
-                    if (reconnectAttempts === 1 || reconnectAttempts % 5 === 0) {
-                        showConnectionStatus('connecting', 'Reconnexion...');
-                    }
-                    
-                    // Reconnexion avec backoff exponentiel (max 3 secondes pour éviter les reconnexions trop rapides)
-                    const delay = Math.min(reconnectDelay * Math.pow(2, Math.min(reconnectAttempts - 1, 2)), 3000);
-                    
-                    setTimeout(() => {
-                        console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
-                        // Réessayer même si on a atteint le max (comme les apps modernes)
-                        connectChatSocket();
-                    }, delay);
-                } else {
-                    // Fermeture normale (code 1000) - ne rien faire
-                    console.log('Socket closed normally');
-                    isReconnecting = false;
-                    reconnectAttempts = 0;
+                if (data.messages && data.messages.length > 0) {
+                    // Ajouter les nouveaux messages
+                    data.messages.forEach(message => {
+                        // Vérifier si le message n'existe pas déjà
+                        if (!document.querySelector(`[data-message-id="${message.id}"]`)) {
+                            const isOwnMessage = message.sender_id === currentUserId;
+                            addMessageToDOM(message, isOwnMessage);
+                            
+                            // Si c'est un message reçu, marquer comme lu automatiquement
+                            if (!isOwnMessage) {
+                                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                                                document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+                                fetch(`/chat/messages/${message.id}/read/`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRFToken': csrfToken,
+                                        'Content-Type': 'application/json',
+                                    },
+                                }).catch(err => {
+                                    console.log('Could not mark message as read:', err);
+                                });
+                            }
+                            
+                            lastMessageId = Math.max(lastMessageId || 0, message.id);
+                        }
+                    });
                 }
-            };
+            }
         } catch (error) {
-            console.error('Error creating WebSocket:', error);
-            // Toujours réessayer, même après maxReconnectAttempts
-            const delay = Math.min(reconnectDelay * Math.pow(2, Math.min(reconnectAttempts, 5)), 30000);
-            setTimeout(() => {
-                reconnectAttempts++;
-                connectChatSocket();
-            }, delay);
+            console.error('Erreur lors du polling:', error);
         }
     }
     
-    // Initialiser la connexion
-    connectChatSocket();
+    // Démarrer le polling
+    function startPolling() {
+        // Arrêter le polling précédent si existant
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+        
+        // Mettre à jour le dernier message ID
+        updateLastMessageId();
+        
+        // Démarrer le polling toutes les 2 secondes
+        pollingInterval = setInterval(pollNewMessages, 2000);
+        
+        console.log('Polling démarré pour la conversation', conversationId);
+    }
+    
+    // Arrêter le polling
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+    
+    // Démarrer le polling au chargement
+    startPolling();
+    
+    // Arrêter le polling quand la page est cachée
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopPolling();
+        } else {
+            startPolling();
+        }
+    });
     
     // Empêcher tout rechargement de page accidentel
     // Protection contre les erreurs qui pourraient causer des rechargements
@@ -1352,25 +1216,7 @@
     messageInput.addEventListener('input', function() {
         autoResizeTextarea(this);
         
-        // Envoyer l'indicateur de frappe seulement si le WebSocket est connecté
-        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            if (!isTyping) {
-                isTyping = true;
-                chatSocket.send(JSON.stringify({
-                    'type': 'typing'
-                }));
-            }
-            
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(function() {
-                isTyping = false;
-                if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                    chatSocket.send(JSON.stringify({
-                        'type': 'stop_typing'
-                    }));
-                }
-            }, 1000);
-        }
+        // Typing indicator désactivé avec polling (peut être réimplémenté avec une API séparée si nécessaire)
     });
     
     // Gérer Enter (envoyer) vs Shift+Enter (nouvelle ligne)
@@ -1456,43 +1302,63 @@
                 submitButton.innerHTML = originalButtonContent;
             });
         } else if (message) {
-            // Vérifier que le WebSocket est connecté
-            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-                // Si le WebSocket n'est pas connecté, envoyer via HTTP comme fallback
-                const formData = new FormData();
-                formData.append('content', message);
-                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-                
-                fetch(`{% url 'chat:send_message' conversation.id %}`, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        addMessageToDOM(data.message, true);
-                        messageInput.value = '';
-                        messageInput.style.height = 'auto';
-                        autoResizeTextarea(messageInput);
-                    } else if (data.error) {
-                        alert('Erreur: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Erreur lors de l\'envoi du message');
-                });
-            } else {
-                // Envoyer le message texte via WebSocket
-                chatSocket.send(JSON.stringify({
-                    'type': 'chat_message',
-                    'content': message
-                }));
-            }
+            // Envoyer le message via HTTP (polling récupérera automatiquement les nouveaux messages)
+            const formData = new FormData();
+            formData.append('content', message);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
             
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-            autoResizeTextarea(messageInput);
+            // Envoi optimiste : afficher le message immédiatement
+            const tempMessageId = 'temp_' + Date.now();
+            const optimisticMessage = {
+                id: tempMessageId,
+                content: message,
+                sender: '{{ user.username|escapejs }}',
+                sender_id: currentUserId,
+                sender_avatar: {% if user.avatar %}'{{ user.avatar.url }}'{% else %}null{% endif %},
+                created_at: new Date().toISOString(),
+                image: null,
+                video: null,
+                audio: null,
+                file: null,
+                file_name: null,
+                read_at: null,
+            };
+            addMessageToDOM(optimisticMessage, true);
+            
+            fetch(`{% url 'chat:send_message' conversation.id %}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Supprimer le message optimiste
+                    const tempMsg = document.querySelector(`[data-message-id="${tempMessageId}"]`);
+                    if (tempMsg) {
+                        tempMsg.remove();
+                    }
+                    // Le polling récupérera le vrai message
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                    autoResizeTextarea(messageInput);
+                } else if (data.error) {
+                    // Supprimer le message optimiste en cas d'erreur
+                    const tempMsg = document.querySelector(`[data-message-id="${tempMessageId}"]`);
+                    if (tempMsg) {
+                        tempMsg.remove();
+                    }
+                    alert('Erreur: ' + data.error);
+                }
+            })
+            .catch(error => {
+                // Supprimer le message optimiste en cas d'erreur
+                const tempMsg = document.querySelector(`[data-message-id="${tempMessageId}"]`);
+                if (tempMsg) {
+                    tempMsg.remove();
+                }
+                console.error('Error:', error);
+                alert('Erreur lors de l\'envoi du message');
+            });
             
             // Réinitialiser les inputs de fichiers
             if (fileInput) fileInput.value = '';
@@ -1500,15 +1366,6 @@
             if (audioInput) audioInput.value = '';
             if (window.Alpine && window.Alpine.store) {
                 window.Alpine.store('selectedFile', null);
-            }
-            
-            // Stop typing indicator
-            clearTimeout(typingTimeout);
-            isTyping = false;
-            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                chatSocket.send(JSON.stringify({
-                    'type': 'stop_typing'
-                }));
             }
         }
     };
@@ -2208,12 +2065,9 @@
     
     // Intercepter les événements qui pourraient causer des rechargements
     document.addEventListener('visibilitychange', function() {
-        // Si la page devient visible, vérifier la connexion WebSocket
+        // Si la page devient visible, redémarrer le polling
         if (document.visibilityState === 'visible') {
-            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-                console.log('Page visible, reconnexion du WebSocket...');
-                connectChatSocket();
-            }
+            startPolling();
         }
     });
     

@@ -46,6 +46,39 @@
         scroll-behavior: smooth;
     }
     
+    /* Chat Popup Styles - Inspiré du feed */
+    #group-chat-popup-overlay {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    #group-chat-popup-container {
+        animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px) scale(0.95);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+    
+    #group-chat-popup-iframe {
+        background: transparent;
+    }
+    
     /* Skeleton Loader Styles */
     .skeleton-post {
         background: rgba(255, 255, 255, 0.85);
@@ -1038,8 +1071,12 @@
         </div>
     </div>
     
-    <!-- Floating Chat Button (FAB) - Vers la messagerie du groupe avec couleur du groupe -->
-    <a href="{% url 'forum:group_detail' group.id %}" class="fixed bottom-6 right-6 z-50 group">
+    <!-- Floating Chat Button (FAB) - Ouvrir le popup de messagerie du groupe -->
+    <button 
+        id="group-chat-fab-button"
+        onclick="openGroupChatPopup()"
+        class="fixed bottom-6 right-6 z-50 group"
+    >
         <div class="relative">
             <div class="absolute inset-0 rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse" style="background: {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %};"></div>
             <div class="relative w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 hover:rotate-12" style="background: {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %};">
@@ -1048,7 +1085,53 @@
                 </svg>
             </div>
         </div>
-    </a>
+    </button>
+    
+    <!-- Group Chat Popup Overlay -->
+    <div 
+        id="group-chat-popup-overlay"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4"
+        onclick="closeGroupChatPopup(event)"
+    >
+        <!-- Group Chat Popup Container -->
+        <div 
+            id="group-chat-popup-container"
+            class="w-full h-full max-w-6xl max-h-[90vh] bg-telegram-surface/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden flex flex-col transform scale-95 opacity-0 transition-all duration-300"
+            onclick="event.stopPropagation()"
+        >
+            <!-- Chat Header -->
+            <div class="flex items-center justify-between p-4 border-b border-white/10 bg-telegram-surface/98 backdrop-blur-xl">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg" style="background: {% if group.banner_color %}{{ group.banner_color }}{% else %}{{ topic.color }}{% endif %};">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-telegram-text font-semibold text-lg">{{ group.name }}</h2>
+                        <p class="text-telegram-text-secondary text-xs">{{ group.member_count }} membre{{ group.member_count|pluralize }}</p>
+                    </div>
+                </div>
+                <button 
+                    onclick="closeGroupChatPopup()"
+                    class="p-2 rounded-lg hover:bg-white/10 text-telegram-text-secondary transition-colors"
+                    title="Fermer"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Chat Content (iframe) -->
+            <iframe 
+                id="group-chat-popup-iframe"
+                src="{% url 'forum:group_detail' group.id %}"
+                class="flex-1 w-full border-0"
+                frameborder="0"
+            ></iframe>
+        </div>
+    </div>
     </div>
 </div>
 
@@ -1296,5 +1379,58 @@
             }
         }
     })();
+    
+    // Group Chat Popup Functions - Inspiré du feed
+    function openGroupChatPopup() {
+        const overlay = document.getElementById('group-chat-popup-overlay');
+        const container = document.getElementById('group-chat-popup-container');
+        
+        if (overlay && container) {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            
+            // Trigger animation after a small delay to ensure display
+            setTimeout(() => {
+                container.classList.remove('scale-95', 'opacity-0');
+                container.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            // Prevent body scroll when popup is open
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    function closeGroupChatPopup(event) {
+        // Si l'événement est passé et qu'on clique sur le container, ne pas fermer
+        if (event && event.target.id === 'group-chat-popup-container') {
+            return;
+        }
+        
+        const overlay = document.getElementById('group-chat-popup-overlay');
+        const container = document.getElementById('group-chat-popup-container');
+        
+        if (overlay && container) {
+            // Animation de fermeture
+            container.classList.remove('scale-100', 'opacity-100');
+            container.classList.add('scale-95', 'opacity-0');
+            
+            // Masquer après l'animation
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+    }
+    
+    // Fermer avec la touche Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('group-chat-popup-overlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
+                closeGroupChatPopup();
+            }
+        }
+    });
 </script>
 {% endblock %}

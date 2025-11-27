@@ -1,0 +1,52 @@
+{% load chat_filters %}
+<div class="message-bubble {% if message.sender == user %}sent message-out{% else %}received message-in{% endif %}" data-message-id="{{ message.id }}">
+    {% if message.content %}
+        <div class="message-content">
+            {{ message.content|linebreaks }}
+        </div>
+    {% endif %}
+    
+    {% if message.image %}
+        <div class="message-media">
+            <img src="{{ message.image.url }}" alt="Image" loading="lazy" onclick="openImageModal('{{ message.image.url }}')">
+        </div>
+    {% elif message.video %}
+        <div class="message-media">
+            <video src="{{ message.video.url }}" controls></video>
+        </div>
+    {% elif message.audio %}
+        <div class="message-media">
+            <audio src="{{ message.audio.url }}" controls></audio>
+        </div>
+    {% elif message.file %}
+        <div class="message-file">
+            <div class="message-file-icon">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <div class="message-file-info">
+                <div class="message-file-name">{{ message.file_name|default:"Fichier" }}</div>
+                <div class="message-file-size">{{ message.file.size|filesizeformat }}</div>
+            </div>
+            <a href="{{ message.file.url }}" download class="text-telegram-blue hover:underline">Télécharger</a>
+        </div>
+    {% endif %}
+    
+    <div class="message-footer">
+        <span class="message-time">{{ message.created_at|time:"H:i" }}</span>
+        {% if message.sender == user %}
+            <div class="read-receipt {% if message.read_at %}double{% else %}single{% endif %}">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                {% if message.read_at %}
+                    <svg fill="currentColor" viewBox="0 0 20 20" style="margin-left: -8px;">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                    </svg>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
